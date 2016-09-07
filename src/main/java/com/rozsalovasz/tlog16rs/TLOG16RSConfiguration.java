@@ -1,10 +1,10 @@
-package com.mycompany.helloworldmaven;
+package com.rozsalovasz.tlog16rs;
 
 import io.dropwizard.Configuration;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.hibernate.validator.constraints.*;
 import javax.validation.constraints.*;
 
-public class HelloWorldMavenConfiguration extends Configuration {
+public class TLOG16RSConfiguration extends Configuration {
     // TODO: implement service configuration
 }
