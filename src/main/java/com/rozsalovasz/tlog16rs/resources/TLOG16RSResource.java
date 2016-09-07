@@ -34,6 +34,6 @@ public class TLOG16RSResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Greeting getJSONGreeting() {
-        return new Greeting("Hello world!");
+        return new Greeting("Hello World!");
     }
 }
