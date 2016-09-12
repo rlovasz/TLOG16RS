@@ -13,7 +13,7 @@ public class TLOG16RSAppliction extends Application<TLOG16RSConfiguration> {
 
     @Override
     public String getName() {
-        return "HelloWorldMaven";
+        return "TLOG16RS";
     }
 
     @Override
