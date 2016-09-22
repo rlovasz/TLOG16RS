@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.core;
 
-public class NotTheSameMonthException extends Exception {
+public class NotTheSameMonthException extends RuntimeException {
 
     public NotTheSameMonthException() {
     }

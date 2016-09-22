@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.core;
 
-public class NotMultipleQuarterHourException extends Exception {
+public class NotMultipleQuarterHourException extends RuntimeException {
 
     
     public NotMultipleQuarterHourException() {

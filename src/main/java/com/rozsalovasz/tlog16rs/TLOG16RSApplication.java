@@ -5,10 +5,10 @@ import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
-public class TLOG16RSAppliction extends Application<TLOG16RSConfiguration> {
+public class TLOG16RSApplication extends Application<TLOG16RSConfiguration> {
 
     public static void main(final String[] args) throws Exception {
-        new TLOG16RSAppliction().run(args);
+        new TLOG16RSApplication().run(args);
     }
 
     @Override

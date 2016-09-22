@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.core;
 
-public class NegativeMinutesOfWorkException extends Exception {
+public class NegativeMinutesOfWorkException extends RuntimeException {
 
     public NegativeMinutesOfWorkException() {
     }

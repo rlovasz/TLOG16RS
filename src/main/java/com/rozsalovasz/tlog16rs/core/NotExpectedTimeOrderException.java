@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.core;
 
-public class NotExpectedTimeOrderException extends Exception {
+public class NotExpectedTimeOrderException extends RuntimeException {
 
     public NotExpectedTimeOrderException() {
     }

@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.core;
 
-public class NoMonthsException extends Exception {
+public class NoMonthsException extends RuntimeException {
 
     public NoMonthsException() {
     }

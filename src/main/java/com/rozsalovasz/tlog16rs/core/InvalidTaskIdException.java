@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.core;
 
-public class InvalidTaskIdException extends Exception {
+public class InvalidTaskIdException extends RuntimeException {
 
     public InvalidTaskIdException() {
     }
@@ -8,5 +8,4 @@ public class InvalidTaskIdException extends Exception {
     public InvalidTaskIdException(String message) {
         super(message);
     }
-    
 }

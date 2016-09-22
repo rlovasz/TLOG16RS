@@ -1,6 +1,5 @@
 package com.rozsalovasz.tlog16rs.resources;
 
-
 import com.rozsalovasz.tlog16rs.core.EmptyTimeFieldException;
 import com.rozsalovasz.tlog16rs.core.FutureWorkException;
 import com.rozsalovasz.tlog16rs.core.InvalidTaskIdException;
@@ -10,16 +9,14 @@ import com.rozsalovasz.tlog16rs.core.NoTaskIdException;
 import com.rozsalovasz.tlog16rs.core.NotExpectedTimeOrderException;
 import com.rozsalovasz.tlog16rs.core.NotMultipleQuarterHourException;
 import com.rozsalovasz.tlog16rs.core.NotNewDateException;
-import com.rozsalovasz.tlog16rs.core.NotSameYearException;
 import com.rozsalovasz.tlog16rs.core.NotSeparatedTaskTimesException;
 import com.rozsalovasz.tlog16rs.core.NotTheSameMonthException;
 import com.rozsalovasz.tlog16rs.core.Task;
 import com.rozsalovasz.tlog16rs.core.TimeLogger;
-import com.rozsalovasz.tlog16rs.core.WeekendIsNotEnabledException;
+import com.rozsalovasz.tlog16rs.core.WeekendNotEnabledException;
 import com.rozsalovasz.tlog16rs.core.WorkDay;
 import com.rozsalovasz.tlog16rs.core.WorkMonth;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ws.rs.GET;
@@ -48,24 +45,40 @@ public class TLOG16RSResource {
         return day;
     }
 
+    @Path("/comment")
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String getTasksComment() {
+        Task task;
+        try {
+            task = new Task("4585", "This is a comment", 7, 30, 8, 45);
+            return task.getComment();
+        } catch (InvalidTaskIdException | NoTaskIdException ex) {
+            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
+            System.err.println(ex.getMessage());
+            return ex.getMessage();
+        }
+
+    }
+
     @GET
     @Path("/workmonths/{month}/workdays/{day}/tasks")
     public Task getJsonTaskDefault(@PathParam("month") String month, @PathParam("day") String day) {
         try {
-            Task task1 = new Task("4585", "This is a comment", LocalTime.of(7, 30), LocalTime.of(8, 45));
-            Task task2 = new Task("LT-1854", "This is a new comment", LocalTime.of(8, 45), LocalTime.of(10, 30));
-            Task task3 = new Task("1245", "", LocalTime.of(10, 30), LocalTime.of(14, 45));
-            Task task4 = new Task("1548", "This is a new day", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", LocalTime.of(10, 45), LocalTime.of(12, 30));
-            Task task6 = new Task("1568", "Blabla", LocalTime.of(7, 45), LocalTime.of(9, 45));
-            Task task7 = new Task("LT-4345", "kfhlkd", LocalTime.of(10, 45), LocalTime.of(13, 30));
-            Task task8 = new Task("5665", "gdfgfdg", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            WorkDay workDay1 = new WorkDay(LocalDate.of(2016, 9, 7));
-            WorkDay workDay2 = new WorkDay(400, LocalDate.of(2016, 9, 8));
-            WorkDay workDay3 = new WorkDay(LocalDate.of(2016, 8, 31));
-            WorkDay workDay4 = new WorkDay(LocalDate.of(2016, 8, 30));
-            WorkMonth september = new WorkMonth();
-            WorkMonth august = new WorkMonth();
+            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
+            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
+            Task task3 = new Task("1245", "", 10, 30, 14, 45);
+            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
+            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
+            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
+            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
+            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
+            WorkDay workDay1 = new WorkDay(2016, 9, 7);
+            WorkDay workDay2 = new WorkDay(400, 2016, 9, 8);
+            WorkDay workDay3 = new WorkDay(2016, 8, 31);
+            WorkDay workDay4 = new WorkDay(2016, 8, 30);
+            WorkMonth september = new WorkMonth(2016,9);
+            WorkMonth august = new WorkMonth(2016,8);
             TimeLogger all = new TimeLogger();
                 workDay1.addTask(task1);
                 workDay1.addTask(task2);
@@ -92,14 +105,15 @@ public class TLOG16RSResource {
                     }
                 }
             }
-            return new Task();
+            return new Task("0000");
 
-        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException 
-                | FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException 
-                | EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendIsNotEnabledException 
-                | NotNewDateException | NotTheSameMonthException | NotSameYearException ex) {
+        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException | 
+                FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException 
+                | EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendNotEnabledException 
+                | NotNewDateException | NotTheSameMonthException ex) {        
             Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            return new Task();
+            System.err.println(ex.getMessage());
+            return new Task("0000");
         }
     }
 
@@ -107,20 +121,20 @@ public class TLOG16RSResource {
     @Path("/workmonths/{month}/workdays/{day}/tasks/{i}")
     public Task getJsonTask(@PathParam("month") String month, @PathParam("day") String day, @PathParam("i") int i) {
         try {
-            Task task1 = new Task("4585", "This is a comment", LocalTime.of(7, 30), LocalTime.of(8, 45));
-            Task task2 = new Task("LT-1854", "This is a new comment", LocalTime.of(8, 45), LocalTime.of(10, 30));
-            Task task3 = new Task("1245", "", LocalTime.of(10, 30), LocalTime.of(14, 45));
-            Task task4 = new Task("1548", "This is a new day", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", LocalTime.of(10, 45), LocalTime.of(12, 30));
-            Task task6 = new Task("1568", "Blabla", LocalTime.of(7, 45), LocalTime.of(9, 45));
-            Task task7 = new Task("LT-4345", "kfhlkd", LocalTime.of(10, 45), LocalTime.of(13, 30));
-            Task task8 = new Task("5665", "gdfgfdg", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            WorkDay workDay1 = new WorkDay(LocalDate.of(2016, 9, 7));
-            WorkDay workDay2 = new WorkDay(400, LocalDate.of(2016, 9, 8));
-            WorkDay workDay3 = new WorkDay(LocalDate.of(2016, 8, 31));
-            WorkDay workDay4 = new WorkDay(LocalDate.of(2016, 8, 30));
-            WorkMonth september = new WorkMonth();
-            WorkMonth august = new WorkMonth();
+            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
+            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
+            Task task3 = new Task("1245", "", 10, 30, 14, 45);
+            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
+            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
+            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
+            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
+            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
+            WorkDay workDay1 = new WorkDay(2016, 9, 7);
+            WorkDay workDay2 = new WorkDay(400, 2016, 9, 8);
+            WorkDay workDay3 = new WorkDay(2016, 8, 31);
+            WorkDay workDay4 = new WorkDay(2016, 8, 30);
+            WorkMonth september = new WorkMonth(2016,9);
+            WorkMonth august = new WorkMonth(2016,8);
             TimeLogger all = new TimeLogger();
                 workDay1.addTask(task1);
                 workDay1.addTask(task2);
@@ -147,14 +161,15 @@ public class TLOG16RSResource {
                     }
                 }
             }
-            return new Task();
+            return new Task("0000");
 
-        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException | FutureWorkException 
-                | NotMultipleQuarterHourException | NotExpectedTimeOrderException | EmptyTimeFieldException 
-                | NotSeparatedTaskTimesException | WeekendIsNotEnabledException | NotNewDateException 
-                | NotTheSameMonthException | NotSameYearException ex) {
+        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException 
+                | WeekendNotEnabledException | NotNewDateException | NotTheSameMonthException | 
+                FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException 
+                | EmptyTimeFieldException | NotSeparatedTaskTimesException ex) {
             Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            return new Task();
+            System.err.println(ex.getMessage());
+            return new Task("0000");
         }
     }
 
@@ -162,21 +177,21 @@ public class TLOG16RSResource {
     @Path("/workmonths/{month}/workdays")
     public WorkDay getJsonWorkDayDefault(@PathParam("month") String month) throws NegativeMinutesOfWorkException, FutureWorkException {
         try {
-            Task task1 = new Task("4585", "This is a comment", LocalTime.of(7, 30), LocalTime.of(8, 45));
-            Task task2 = new Task("LT-1854", "This is a new comment", LocalTime.of(8, 45), LocalTime.of(10, 30));
-            Task task3 = new Task("1245", "", LocalTime.of(10, 30), LocalTime.of(14, 45));
-            Task task4 = new Task("1548", "This is a new day", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", LocalTime.of(10, 45), LocalTime.of(12, 30));
-            Task task6 = new Task("1568", "Blabla", LocalTime.of(7, 45), LocalTime.of(9, 45));
-            Task task7 = new Task("LT-4345", "kfhlkd", LocalTime.of(10, 45), LocalTime.of(13, 30));
-            Task task8 = new Task("5665", "gdfgfdg", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            WorkDay workDay1 = new WorkDay(LocalDate.of(2016, 9, 7));
-            WorkDay workDay2 = new WorkDay(400, LocalDate.of(2016, 9, 8));
-            WorkDay workDay3 = new WorkDay(LocalDate.of(2016, 8, 31));
-            WorkDay workDay4 = new WorkDay(LocalDate.of(2016, 8, 30));
-            WorkDay workDay5 = new WorkDay(LocalDate.of(2016, 9, 1));
-            WorkMonth september = new WorkMonth();
-            WorkMonth august = new WorkMonth();
+            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
+            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
+            Task task3 = new Task("1245", "", 10, 30, 14, 45);
+            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
+            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
+            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
+            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
+            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
+            WorkDay workDay1 = new WorkDay(2016, 9, 7);
+            WorkDay workDay2 = new WorkDay(400, 2016, 9, 8);
+            WorkDay workDay3 = new WorkDay(2016, 8, 31);
+            WorkDay workDay4 = new WorkDay(2016, 8, 30);
+            WorkDay workDay5 = new WorkDay(2016, 9, 1);
+            WorkMonth september = new WorkMonth(2016,9);
+            WorkMonth august = new WorkMonth(2016,8);
             TimeLogger all = new TimeLogger();
             workDay1.addTask(task1);
             workDay1.addTask(task2);
@@ -194,6 +209,7 @@ public class TLOG16RSResource {
             august.addWorkDay(workDay4);
             all.addMonth(august);
             all.addMonth(september);
+
             LocalDate date = getDate(all, month, "1");
             for (WorkMonth workMonth : all.getMonths()) {
                 if (workMonth.getDays().get(0).getActualDay().getMonth().equals(date.getMonth())) {
@@ -206,10 +222,11 @@ public class TLOG16RSResource {
                 }
             }
             return new WorkDay();
-        } catch (WeekendIsNotEnabledException | NotNewDateException | NotTheSameMonthException | NotSameYearException |
+        } catch (WeekendNotEnabledException | NotNewDateException | NotTheSameMonthException |
                 NotMultipleQuarterHourException | NotExpectedTimeOrderException | EmptyTimeFieldException |
                 NotSeparatedTaskTimesException | InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException | FutureWorkException ex) {
             Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
+            System.err.println(ex.getMessage());
             return new WorkDay();
         }
 
@@ -219,20 +236,20 @@ public class TLOG16RSResource {
     @Path("/workmonths/{month}/workdays/{day}")
     public WorkDay getJsonWorkDay(@PathParam("month") String month, @PathParam("day") String day) throws NegativeMinutesOfWorkException, FutureWorkException {
         try {
-            Task task1 = new Task("4585", "This is a comment", LocalTime.of(7, 30), LocalTime.of(8, 45));
-            Task task2 = new Task("LT-1854", "This is a new comment", LocalTime.of(8, 45), LocalTime.of(10, 30));
-            Task task3 = new Task("1245", "", LocalTime.of(10, 30), LocalTime.of(14, 45));
-            Task task4 = new Task("1548", "This is a new day", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", LocalTime.of(10, 45), LocalTime.of(12, 30));
-            Task task6 = new Task("1568", "Blabla", LocalTime.of(7, 45), LocalTime.of(9, 45));
-            Task task7 = new Task("LT-4345", "kfhlkd", LocalTime.of(10, 45), LocalTime.of(13, 30));
-            Task task8 = new Task("5665", "gdfgfdg", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            WorkDay workDay1 = new WorkDay(LocalDate.of(2016, 9, 7));
-            WorkDay workDay2 = new WorkDay(400, LocalDate.of(2016, 9, 8));
-            WorkDay workDay3 = new WorkDay(LocalDate.of(2016, 8, 31));
-            WorkDay workDay4 = new WorkDay(LocalDate.of(2016, 8, 30));
-            WorkMonth september = new WorkMonth();
-            WorkMonth august = new WorkMonth();
+            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
+            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
+            Task task3 = new Task("1245", "", 10, 30, 14, 45);
+            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
+            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
+            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
+            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
+            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
+            WorkDay workDay1 = new WorkDay(2016, 9, 7);
+            WorkDay workDay2 = new WorkDay(400, 2016, 9, 8);
+            WorkDay workDay3 = new WorkDay(2016, 8, 31);
+            WorkDay workDay4 = new WorkDay(2016, 8, 30);
+            WorkMonth september = new WorkMonth(2016,9);
+            WorkMonth august = new WorkMonth(2016,8);
             TimeLogger all = new TimeLogger();
             workDay1.addTask(task1);
             workDay1.addTask(task2);
@@ -263,8 +280,9 @@ public class TLOG16RSResource {
 
         } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException | FutureWorkException |
                 NotMultipleQuarterHourException | NotExpectedTimeOrderException | EmptyTimeFieldException |
-                NotSeparatedTaskTimesException | WeekendIsNotEnabledException | NotNewDateException | NotTheSameMonthException | NotSameYearException ex) {
+                NotSeparatedTaskTimesException | WeekendNotEnabledException | NotNewDateException | NotTheSameMonthException ex) {
             Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
+            System.err.println(ex.getMessage());
             return new WorkDay();
         }
 
@@ -274,20 +292,20 @@ public class TLOG16RSResource {
     @Path("/workmonths")
     public WorkMonth getJsonWorkMonthDefault() {
         try {
-            Task task1 = new Task("4585", "This is a comment", LocalTime.of(7, 30), LocalTime.of(8, 45));
-            Task task2 = new Task("LT-1854", "This is a new comment", LocalTime.of(8, 45), LocalTime.of(10, 30));
-            Task task3 = new Task("1245", "", LocalTime.of(10, 30), LocalTime.of(14, 45));
-            Task task4 = new Task("1548", "This is a new day", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", LocalTime.of(10, 45), LocalTime.of(12, 30));
-            Task task6 = new Task("1568", "Blabla", LocalTime.of(7, 45), LocalTime.of(9, 45));
-            Task task7 = new Task("LT-4345", "kfhlkd", LocalTime.of(10, 45), LocalTime.of(13, 30));
-            Task task8 = new Task("5665", "gdfgfdg", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            WorkDay workDay1 = new WorkDay(LocalDate.of(2016, 9, 7));
+            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
+            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
+            Task task3 = new Task("1245", "", 10, 30, 14, 45);
+            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
+            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
+            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
+            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
+            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
+            WorkDay workDay1 = new WorkDay(2016, 9, 7);
             WorkDay workDay2 = new WorkDay(400);
-            WorkDay workDay3 = new WorkDay(LocalDate.of(2016, 8, 31));
-            WorkDay workDay4 = new WorkDay(LocalDate.of(2016, 8, 30));
-            WorkMonth september = new WorkMonth();
-            WorkMonth august = new WorkMonth();
+            WorkDay workDay3 = new WorkDay(2016, 8, 31);
+            WorkDay workDay4 = new WorkDay(2016, 8, 30);
+            WorkMonth september = new WorkMonth(2016,9);
+            WorkMonth august = new WorkMonth(2016,8);
             TimeLogger all = new TimeLogger();
             workDay1.addTask(task1);
             workDay1.addTask(task2);
@@ -303,11 +321,15 @@ public class TLOG16RSResource {
             august.addWorkDay(workDay4);
             all.addMonth(august);
             all.addMonth(september);
-            return all.Min();
-        } catch (InvalidTaskIdException | NoTaskIdException | NoMonthsException | NegativeMinutesOfWorkException | FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException | EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendIsNotEnabledException |
-                NotNewDateException | NotTheSameMonthException | NotSameYearException ex) {
+            return all.getFirstMonthOfTimeLogger();
+        } catch (InvalidTaskIdException | NoTaskIdException | NoMonthsException |
+                NegativeMinutesOfWorkException | FutureWorkException |
+                NotMultipleQuarterHourException | NotExpectedTimeOrderException |
+                EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendNotEnabledException |
+                NotNewDateException | NotTheSameMonthException ex) {
             Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            return new WorkMonth();
+            System.err.println(ex.getMessage());
+            return new WorkMonth(1970,1);
         }
 
     }
@@ -316,20 +338,20 @@ public class TLOG16RSResource {
     @Path("/workmonths/{month}")
     public WorkMonth getJsonWorkMonth(@PathParam("month") String month) {
         try {
-            Task task1 = new Task("4585", "This is a comment", LocalTime.of(7, 30), LocalTime.of(8, 45));
-            Task task2 = new Task("LT-1854", "This is a new comment", LocalTime.of(8, 45), LocalTime.of(10, 30));
-            Task task3 = new Task("1245", "", LocalTime.of(10, 30), LocalTime.of(14, 45));
-            Task task4 = new Task("1548", "This is a new day", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", LocalTime.of(10, 45), LocalTime.of(12, 30));
-            Task task6 = new Task("1568", "Blabla", LocalTime.of(7, 45), LocalTime.of(9, 45));
-            Task task7 = new Task("LT-4345", "kfhlkd", LocalTime.of(10, 45), LocalTime.of(13, 30));
-            Task task8 = new Task("5665", "gdfgfdg", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            WorkDay workDay1 = new WorkDay(LocalDate.of(2016, 9, 7));
+            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
+            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
+            Task task3 = new Task("1245", "", 10, 30, 14, 45);
+            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
+            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
+            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
+            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
+            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
+            WorkDay workDay1 = new WorkDay(2016, 9, 7);
             WorkDay workDay2 = new WorkDay(400);
-            WorkDay workDay3 = new WorkDay(LocalDate.of(2016, 8, 31));
-            WorkDay workDay4 = new WorkDay(LocalDate.of(2016, 8, 30));
-            WorkMonth september = new WorkMonth();
-            WorkMonth august = new WorkMonth();
+            WorkDay workDay3 = new WorkDay(2016, 8, 31);
+            WorkDay workDay4 = new WorkDay(2016, 8, 30);
+            WorkMonth september = new WorkMonth(2016,9);
+            WorkMonth august = new WorkMonth(2016,8);
             workDay1.addTask(task1);
             workDay1.addTask(task2);
             workDay2.addTask(task3);
@@ -348,13 +370,15 @@ public class TLOG16RSResource {
                 case "september":
                     return september;
                 default:
-                    return new WorkMonth();
+                    return new WorkMonth(1970,1);
             }
         } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException |
                 FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException |
-                EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendIsNotEnabledException | NotNewDateException | NotTheSameMonthException ex) {
+                EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendNotEnabledException |
+                NotNewDateException | NotTheSameMonthException ex) {
             Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            return new WorkMonth();
+            System.err.println(ex.getMessage());
+            return new WorkMonth(1970,1);
         }
 
     }
@@ -362,20 +386,20 @@ public class TLOG16RSResource {
     @GET
     public TimeLogger getJsonTimeLogger() {
         try {
-            Task task1 = new Task("4585", "This is a comment", LocalTime.of(7, 30), LocalTime.of(8, 45));
-            Task task2 = new Task("LT-1854", "This is a new comment", LocalTime.of(8, 45), LocalTime.of(10, 30));
-            Task task3 = new Task("1245", "", LocalTime.of(10, 30), LocalTime.of(14, 45));
-            Task task4 = new Task("1548", "This is a new day", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", LocalTime.of(10, 45), LocalTime.of(12, 30));
-            Task task6 = new Task("1568", "Blabla", LocalTime.of(7, 45), LocalTime.of(9, 45));
-            Task task7 = new Task("LT-4345", "kfhlkd", LocalTime.of(10, 45), LocalTime.of(13, 30));
-            Task task8 = new Task("5665", "gdfgfdg", LocalTime.of(7, 30), LocalTime.of(10, 0));
-            WorkDay workDay1 = new WorkDay(LocalDate.of(2016, 9, 7));
+            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
+            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
+            Task task3 = new Task("1245", "", 10, 30, 14, 45);
+            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
+            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
+            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
+            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
+            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
+            WorkDay workDay1 = new WorkDay(2016, 9, 7);
             WorkDay workDay2 = new WorkDay(400);
-            WorkDay workDay3 = new WorkDay(LocalDate.of(2016, 8, 31));
-            WorkDay workDay4 = new WorkDay(LocalDate.of(2016, 8, 30));
-            WorkMonth september = new WorkMonth();
-            WorkMonth august = new WorkMonth();
+            WorkDay workDay3 = new WorkDay(2016, 8, 31);
+            WorkDay workDay4 = new WorkDay(2016, 8, 30);
+            WorkMonth september = new WorkMonth(2016,9);
+            WorkMonth august = new WorkMonth(2016,8);
             TimeLogger all = new TimeLogger();
             workDay1.addTask(task1);
             workDay1.addTask(task2);
@@ -393,9 +417,14 @@ public class TLOG16RSResource {
             all.addMonth(september);
             return all;
         } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException |
-                FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException | EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendIsNotEnabledException | NotNewDateException | NotTheSameMonthException | NotSameYearException ex) {
+                FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException |
+                EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendNotEnabledException |
+                NotNewDateException | NotTheSameMonthException ex) {
             Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
+            System.err.println(ex.getMessage());
             return new TimeLogger();
         }
     }
+   
+    
 }

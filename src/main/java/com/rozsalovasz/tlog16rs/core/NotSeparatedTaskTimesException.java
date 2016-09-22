@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.core;
 
-public class NotSeparatedTaskTimesException extends Exception {
+public class NotSeparatedTaskTimesException extends RuntimeException {
 
     public NotSeparatedTaskTimesException() {
     }

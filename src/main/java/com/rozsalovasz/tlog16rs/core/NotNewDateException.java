@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.core;
 
-public class NotNewDateException extends Exception {
+public class NotNewDateException extends RuntimeException {
 
     public NotNewDateException() {
     }

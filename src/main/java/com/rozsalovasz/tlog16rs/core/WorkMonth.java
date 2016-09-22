@@ -1,61 +1,61 @@
 package com.rozsalovasz.tlog16rs.core;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.io.IOException;
+import java.time.YearMonth;
 import java.util.*;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 /**
  * With the instantiation of this class we can create work months. We can ask
- * for the days in this month and we can change it. We can ask for the sum of
- * the working minutes in this work month, and the extra minutes.
+ for the days in this date and we can change it. We can ask for the sum of
+ the working minutes in this work date, and the extra minutes.
  *
  * @author precognox
  */
-@NoArgsConstructor
-public class WorkMonth {
+public class WorkMonth implements Comparable<WorkMonth>{
 
-    @Setter
     @Getter
     private List<WorkDay> days = new ArrayList<>();
+    @Getter
+    @JsonSerialize(using = YearMonthSerializer.class)
+    private YearMonth date;
     private long sumPerMonth = 0;
     private long requiredMinPerMonth = 0;
 
     /**
-     * This method calculates all the minutes in this month while the employee
-     * worked
+     * 
+     * @param year This is the year of this date in YYYY format
+     * @param month This is the date's value with a simple integer
+     */
+    public WorkMonth(int year, int month) {
+        this.date = YearMonth.of(year, month);
+    }
+    
+    /**
+     * This method calculates all the minutes in this date while the employee worked
      *
      * @return with a positive value of worked minutes
-     * @throws
-     * com.rozsalovasz.tlog16rs.core.NotExpectedTimeOrderException,
-     * if one of the tasks begins after it ends
-     * @throws
-     * com.rozsalovasz.tlog16rs.core.EmptyTimeFieldException, if
-     * one of the tasks has empty time field
      */
-    public long getSumPerMonth() throws NotExpectedTimeOrderException, EmptyTimeFieldException {
+    public long getSumPerMonth(){
         if (sumPerMonth == 0) {
-            for (WorkDay workDay : days) {
-                sumPerMonth += workDay.getSumPerDay();
-            }
+          return days.stream().mapToLong(WorkDay::getSumPerDay).sum();
         }
         return sumPerMonth;
     }
 
     /**
-     * This method calculates all the extra worked minutes in this month
+     * This method calculates all the extra worked minutes in this date
      *
      * @return with the signed value of extra minutes. If it is positive the
      * employee worked more, if it is negative the employee worked less, then
      * the required.
-     * @throws
-     * com.rozsalovasz.tlog16rs.core.NotExpectedTimeOrderException,
-     * if one of the tasks begins after it ends
-     * @throws
-     * com.rozsalovasz.tlog16rs.core.EmptyTimeFieldException, if
-     * one of the tasks has empty time field
      */
-    public long getExtraMinPerMonth() throws NotExpectedTimeOrderException, EmptyTimeFieldException {
+    public long getExtraMinPerMonth(){
         if (requiredMinPerMonth == 0) {
             requiredMinPerMonth = getRequiredMinPerMonth();
         }
@@ -63,8 +63,7 @@ public class WorkMonth {
     }
 
     /**
-     * This method calculates how many minutes should the employee work this
-     * month.
+     * This method calculates how many minutes should the employee work this date.
      *
      * @return with the integer value of minutes.
      */
@@ -80,36 +79,22 @@ public class WorkMonth {
      * the default false value: addWorkDay(WorkDay,false)
      *
      * @param workDay This is a WorkDay parameter, which will be added.
-     * @throws
-     * com.rozsalovasz.tlog16rs.core.WeekendIsNotEnabledException,
-     * if we try to add a day of a weekend while it is not enabled
-     * @throws com.rozsalovasz.tlog16rs.core.NotNewDateException,
-     * if we try to add a date, which is already exists
-     * @throws com.rozsalovasz.tlog16rs.core.NotTheSameMonthException,
-     * if we try to add a day from an other month
      */
-    public void addWorkDay(WorkDay workDay) throws WeekendIsNotEnabledException, NotNewDateException, NotTheSameMonthException {
+    public void addWorkDay(WorkDay workDay) {
         addWorkDay(workDay, false);
     }
 
     /**
-     * This method adds a work day to this month, if the work day is a weekday.
+     * This method adds a work day to this date, if the work day is a weekday.
      * But if it is on weekend we have to enable to work on weekend.
      *
      * @param workDay This is a WorkDay parameter, which will be added.
      * @param isWeekendEnabled This is a boolean parameter, if it is false, we
      * cannot work on weekend, but if it is true, we can add a day of weekend to
-     * this month.
-     * @throws
-     * com.rozsalovasz.tlog16rs.core.WeekendIsNotEnabledException,
-     * if we try to add a weekend and it is enabled
-     * @throws com.rozsalovasz.tlog16rs.core.NotNewDateException,
-     * the day is already exists, what we are trying to add
-     * @throws com.rozsalovasz.tlog16rs.core.NotTheSameMonthException, 
-     * if we try to add a day from an other month
+     * this date.
      */
-    public void addWorkDay(WorkDay workDay, boolean isWeekendEnabled) throws WeekendIsNotEnabledException, NotNewDateException, NotTheSameMonthException {
-        if ((workDay.isWeekday() || isWeekendEnabled) && isNewDate(workDay) && isSameMonth(workDay)) {
+    public void addWorkDay(WorkDay workDay, boolean isWeekendEnabled) {
+        if (isNewDate(workDay) && (isWeekendEnabled || workDay.isWeekday()) && isSameMonth(workDay)) {
             days.add(workDay);
             sumPerMonth = 0;
             requiredMinPerMonth = 0;
@@ -118,7 +103,7 @@ public class WorkMonth {
         } else if (!isSameMonth(workDay)) {
             throw new NotTheSameMonthException("You have changed the month, so you should add this to an other month!");
         } else {
-            throw new WeekendIsNotEnabledException("You cannot add this day, because it is on weekend and it is not enabled.");
+            throw new WeekendNotEnabledException("You cannot add this day, because it is on weekend and it is not enabled.");
         }
     }
 
@@ -131,7 +116,7 @@ public class WorkMonth {
      */
     protected boolean isNewDate(WorkDay workDay) {
         for (WorkDay wd : days) {
-            if (wd.getActualDay().equals(workDay.getActualDay())) {
+            if (!days.isEmpty() && wd.getActualDay().equals(workDay.getActualDay())) {
                 return false;
             }
         }
@@ -139,19 +124,52 @@ public class WorkMonth {
     }
 
     /**
-     * This method decides, if the parameter has the same month value, like the
-     * days
+     * This method decides, if the parameter has the same date value, like the days
      *
      * @param workDay parameter about to decide
-     * @return true if it is the same month, false, if it is not
+     * @return true if it is the same date, false, if it is not
      */
-    public boolean isSameMonth(WorkDay workDay) {
-        for (WorkDay wd : days) {
-            if (wd.getActualDay().getMonthValue() != workDay.getActualDay().getMonthValue()) {
+    protected boolean isSameMonth(WorkDay workDay) {
+        
+            if ((hasDifferentMonthValue(workDay) || hasDifferentYearValue(workDay)) ) {
                 return false;
             }
-        }
+        
         return true;
+    }
+
+    /**
+     * Decides if the WorkDay parameter is in a different year as this month
+     * @param workDay
+     * @return true, if they are in the same year, false, if they are not
+     */
+    private boolean hasDifferentYearValue(WorkDay workDay) {
+        return workDay.getActualDay().getYear() != date.getYear();
+    }
+
+    /**
+     * Decides if the WorkDay parameter is in a different month
+     * @param workDay
+     * @return true, if it is in this month, false, if it is not
+     */
+    private boolean hasDifferentMonthValue(WorkDay workDay) {
+        return workDay.getActualDay().getMonthValue() != date.getMonthValue();
+    }
+
+    @Override
+    public int compareTo(WorkMonth otherMonth) {
+        return this.date.compareTo(otherMonth.date);
+    }
+
+    private static class YearMonthSerializer extends JsonSerializer<YearMonth>{
+
+        public YearMonthSerializer() {
+        }
+
+        @Override
+        public void serialize(YearMonth t, JsonGenerator jg, SerializerProvider sp) throws IOException, JsonProcessingException {
+            jg.writeString(t.toString());
+        }
     }
 
 }
