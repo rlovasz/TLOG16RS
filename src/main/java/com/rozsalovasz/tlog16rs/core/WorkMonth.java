@@ -68,6 +68,7 @@ public class WorkMonth implements Comparable<WorkMonth>{
      * @return with the integer value of minutes.
      */
     public long getRequiredMinPerMonth() {
+        requiredMinPerMonth = 0;
         days.stream().forEach((wd) -> {
             requiredMinPerMonth += wd.getRequiredMinPerDay();
         });

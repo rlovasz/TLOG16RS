@@ -1,25 +1,23 @@
 package com.rozsalovasz.tlog16rs.resources;
 
-import com.rozsalovasz.tlog16rs.core.EmptyTimeFieldException;
-import com.rozsalovasz.tlog16rs.core.FutureWorkException;
-import com.rozsalovasz.tlog16rs.core.InvalidTaskIdException;
-import com.rozsalovasz.tlog16rs.core.NegativeMinutesOfWorkException;
-import com.rozsalovasz.tlog16rs.core.NoMonthsException;
-import com.rozsalovasz.tlog16rs.core.NoTaskIdException;
-import com.rozsalovasz.tlog16rs.core.NotExpectedTimeOrderException;
-import com.rozsalovasz.tlog16rs.core.NotMultipleQuarterHourException;
-import com.rozsalovasz.tlog16rs.core.NotNewDateException;
-import com.rozsalovasz.tlog16rs.core.NotSeparatedTaskTimesException;
-import com.rozsalovasz.tlog16rs.core.NotTheSameMonthException;
+import com.rozsalovasz.tlog16rs.beans.DeleteTaskRB;
+import com.rozsalovasz.tlog16rs.beans.FinishingTaskRB;
+import com.rozsalovasz.tlog16rs.beans.ModifyTaskRB;
+import com.rozsalovasz.tlog16rs.beans.StartTaskRB;
+import com.rozsalovasz.tlog16rs.beans.WorkDayRB;
+import com.rozsalovasz.tlog16rs.beans.WorkMonthRB;
+import com.rozsalovasz.tlog16rs.core.NotNewMonthException;
 import com.rozsalovasz.tlog16rs.core.Task;
 import com.rozsalovasz.tlog16rs.core.TimeLogger;
-import com.rozsalovasz.tlog16rs.core.WeekendNotEnabledException;
 import com.rozsalovasz.tlog16rs.core.WorkDay;
 import com.rozsalovasz.tlog16rs.core.WorkMonth;
-import java.time.LocalDate;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.List;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -29,402 +27,281 @@ import javax.ws.rs.core.MediaType;
 @Produces(MediaType.APPLICATION_JSON)
 public class TLOG16RSResource {
 
-    public LocalDate getDate(TimeLogger all, String monthAsStirng, String dayAsString) {
-        int year = all.getMonths().get(0).getDays().get(0).getActualDay().getYear();
-        LocalDate day;
-        switch (monthAsStirng) {
-            case "august":
-                day = LocalDate.of(year, 8, Integer.parseInt(dayAsString));
-                break;
-            case "september":
-                day = LocalDate.of(year, 9, Integer.parseInt(dayAsString));
-                break;
-            default:
-                day = LocalDate.now();
-        }
-        return day;
-    }
+    private TimeLogger timeLogger = new TimeLogger();
 
-    @Path("/comment")
-    @GET
-    @Produces(MediaType.TEXT_PLAIN)
-    public String getTasksComment() {
-        Task task;
+
+    /*@POST
+    @Path("/workmonths/{year}/{month}")
+    public WorkMonth addNewMonthPath(@PathParam("year") int year, @PathParam("month") int month) {
+        WorkMonth workMonth = new WorkMonth(year, month);
+        timeLogger.addMonth(workMonth);
+        return workMonth;
+    }*/
+    @POST
+    @Path("/workmonths")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public WorkMonth addNewMonth(WorkMonthRB month) {
         try {
-            task = new Task("4585", "This is a comment", 7, 30, 8, 45);
-            return task.getComment();
-        } catch (InvalidTaskIdException | NoTaskIdException ex) {
-            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
+            WorkMonth workMonth = new WorkMonth(month.getYear(), month.getMonth());
+            timeLogger.addMonth(workMonth);
+            return workMonth;
+        } catch (NotNewMonthException ex) {
             System.err.println(ex.getMessage());
-            return ex.getMessage();
+            return new WorkMonth(1970, 1);
         }
-
-    }
-
-    @GET
-    @Path("/workmonths/{month}/workdays/{day}/tasks")
-    public Task getJsonTaskDefault(@PathParam("month") String month, @PathParam("day") String day) {
-        try {
-            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
-            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
-            Task task3 = new Task("1245", "", 10, 30, 14, 45);
-            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
-            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
-            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
-            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
-            WorkDay workDay1 = new WorkDay(2016, 9, 7);
-            WorkDay workDay2 = new WorkDay(400, 2016, 9, 8);
-            WorkDay workDay3 = new WorkDay(2016, 8, 31);
-            WorkDay workDay4 = new WorkDay(2016, 8, 30);
-            WorkMonth september = new WorkMonth(2016,9);
-            WorkMonth august = new WorkMonth(2016,8);
-            TimeLogger all = new TimeLogger();
-                workDay1.addTask(task1);
-                workDay1.addTask(task2);
-                workDay2.addTask(task3);
-                workDay2.addTask(task4);
-                workDay3.addTask(task5);
-                workDay3.addTask(task6);
-                workDay4.addTask(task7);
-                workDay4.addTask(task8);
-                september.addWorkDay(workDay1);
-                september.addWorkDay(workDay2);
-                august.addWorkDay(workDay3);
-                august.addWorkDay(workDay4);
-                all.addMonth(august);
-                all.addMonth(september);
-            LocalDate date = getDate(all, month, day);
-            for (WorkMonth workMonth : all.getMonths()) {
-                if (workMonth.getDays().get(0).getActualDay().getMonth().equals(date.getMonth())) {
-                    for (WorkDay workDay : workMonth.getDays()) {
-                        if (workDay.getActualDay().equals(date)) {
-                            return workDay.getTasks().get(0);
-                        }
-
-                    }
-                }
-            }
-            return new Task("0000");
-
-        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException | 
-                FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException 
-                | EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendNotEnabledException 
-                | NotNewDateException | NotTheSameMonthException ex) {        
-            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            System.err.println(ex.getMessage());
-            return new Task("0000");
-        }
-    }
-
-    @GET
-    @Path("/workmonths/{month}/workdays/{day}/tasks/{i}")
-    public Task getJsonTask(@PathParam("month") String month, @PathParam("day") String day, @PathParam("i") int i) {
-        try {
-            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
-            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
-            Task task3 = new Task("1245", "", 10, 30, 14, 45);
-            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
-            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
-            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
-            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
-            WorkDay workDay1 = new WorkDay(2016, 9, 7);
-            WorkDay workDay2 = new WorkDay(400, 2016, 9, 8);
-            WorkDay workDay3 = new WorkDay(2016, 8, 31);
-            WorkDay workDay4 = new WorkDay(2016, 8, 30);
-            WorkMonth september = new WorkMonth(2016,9);
-            WorkMonth august = new WorkMonth(2016,8);
-            TimeLogger all = new TimeLogger();
-                workDay1.addTask(task1);
-                workDay1.addTask(task2);
-                workDay2.addTask(task3);
-                workDay2.addTask(task4);
-                workDay3.addTask(task5);
-                workDay3.addTask(task6);
-                workDay4.addTask(task7);
-                workDay4.addTask(task8);
-                september.addWorkDay(workDay1);
-                september.addWorkDay(workDay2);
-                august.addWorkDay(workDay3);
-                august.addWorkDay(workDay4);
-                all.addMonth(august);
-                all.addMonth(september);
-            LocalDate date = getDate(all, month, day);
-            for (WorkMonth workMonth : all.getMonths()) {
-                if (workMonth.getDays().get(0).getActualDay().getMonth().equals(date.getMonth())) {
-                    for (WorkDay workDay : workMonth.getDays()) {
-                        if (workDay.getActualDay().equals(date)) {
-                            return workDay.getTasks().get(i - 1);
-                        }
-
-                    }
-                }
-            }
-            return new Task("0000");
-
-        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException 
-                | WeekendNotEnabledException | NotNewDateException | NotTheSameMonthException | 
-                FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException 
-                | EmptyTimeFieldException | NotSeparatedTaskTimesException ex) {
-            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            System.err.println(ex.getMessage());
-            return new Task("0000");
-        }
-    }
-
-    @GET
-    @Path("/workmonths/{month}/workdays")
-    public WorkDay getJsonWorkDayDefault(@PathParam("month") String month) throws NegativeMinutesOfWorkException, FutureWorkException {
-        try {
-            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
-            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
-            Task task3 = new Task("1245", "", 10, 30, 14, 45);
-            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
-            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
-            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
-            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
-            WorkDay workDay1 = new WorkDay(2016, 9, 7);
-            WorkDay workDay2 = new WorkDay(400, 2016, 9, 8);
-            WorkDay workDay3 = new WorkDay(2016, 8, 31);
-            WorkDay workDay4 = new WorkDay(2016, 8, 30);
-            WorkDay workDay5 = new WorkDay(2016, 9, 1);
-            WorkMonth september = new WorkMonth(2016,9);
-            WorkMonth august = new WorkMonth(2016,8);
-            TimeLogger all = new TimeLogger();
-            workDay1.addTask(task1);
-            workDay1.addTask(task2);
-            workDay2.addTask(task3);
-            workDay2.addTask(task4);
-            workDay3.addTask(task5);
-            workDay3.addTask(task6);
-            workDay4.addTask(task7);
-            workDay4.addTask(task8);
-            workDay5.addTask(task8);
-            september.addWorkDay(workDay1);
-            september.addWorkDay(workDay2);
-            september.addWorkDay(workDay5);
-            august.addWorkDay(workDay3);
-            august.addWorkDay(workDay4);
-            all.addMonth(august);
-            all.addMonth(september);
-
-            LocalDate date = getDate(all, month, "1");
-            for (WorkMonth workMonth : all.getMonths()) {
-                if (workMonth.getDays().get(0).getActualDay().getMonth().equals(date.getMonth())) {
-                    for (WorkDay workDay : workMonth.getDays()) {
-                        if (workDay.getActualDay().equals(date)) {
-                            return workDay;
-                        }
-
-                    }
-                }
-            }
-            return new WorkDay();
-        } catch (WeekendNotEnabledException | NotNewDateException | NotTheSameMonthException |
-                NotMultipleQuarterHourException | NotExpectedTimeOrderException | EmptyTimeFieldException |
-                NotSeparatedTaskTimesException | InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException | FutureWorkException ex) {
-            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            System.err.println(ex.getMessage());
-            return new WorkDay();
-        }
-
-    }
-
-    @GET
-    @Path("/workmonths/{month}/workdays/{day}")
-    public WorkDay getJsonWorkDay(@PathParam("month") String month, @PathParam("day") String day) throws NegativeMinutesOfWorkException, FutureWorkException {
-        try {
-            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
-            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
-            Task task3 = new Task("1245", "", 10, 30, 14, 45);
-            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
-            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
-            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
-            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
-            WorkDay workDay1 = new WorkDay(2016, 9, 7);
-            WorkDay workDay2 = new WorkDay(400, 2016, 9, 8);
-            WorkDay workDay3 = new WorkDay(2016, 8, 31);
-            WorkDay workDay4 = new WorkDay(2016, 8, 30);
-            WorkMonth september = new WorkMonth(2016,9);
-            WorkMonth august = new WorkMonth(2016,8);
-            TimeLogger all = new TimeLogger();
-            workDay1.addTask(task1);
-            workDay1.addTask(task2);
-            workDay2.addTask(task3);
-            workDay2.addTask(task4);
-            workDay3.addTask(task5);
-            workDay3.addTask(task6);
-            workDay4.addTask(task7);
-            workDay4.addTask(task8);
-            september.addWorkDay(workDay1);
-            september.addWorkDay(workDay2);
-            august.addWorkDay(workDay3);
-            august.addWorkDay(workDay4);
-            all.addMonth(august);
-            all.addMonth(september);
-            LocalDate date = getDate(all, month, day);
-            for (WorkMonth workMonth : all.getMonths()) {
-                if (workMonth.getDays().get(0).getActualDay().getMonth().equals(date.getMonth())) {
-                    for (WorkDay workDay : workMonth.getDays()) {
-                        if (workDay.getActualDay().equals(date)) {
-                            return workDay;
-                        }
-
-                    }
-                }
-            }
-            return new WorkDay();
-
-        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException | FutureWorkException |
-                NotMultipleQuarterHourException | NotExpectedTimeOrderException | EmptyTimeFieldException |
-                NotSeparatedTaskTimesException | WeekendNotEnabledException | NotNewDateException | NotTheSameMonthException ex) {
-            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            System.err.println(ex.getMessage());
-            return new WorkDay();
-        }
-
     }
 
     @GET
     @Path("/workmonths")
-    public WorkMonth getJsonWorkMonthDefault() {
+    public List<WorkMonth> listWorkMonths() {
         try {
-            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
-            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
-            Task task3 = new Task("1245", "", 10, 30, 14, 45);
-            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
-            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
-            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
-            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
-            WorkDay workDay1 = new WorkDay(2016, 9, 7);
-            WorkDay workDay2 = new WorkDay(400);
-            WorkDay workDay3 = new WorkDay(2016, 8, 31);
-            WorkDay workDay4 = new WorkDay(2016, 8, 30);
-            WorkMonth september = new WorkMonth(2016,9);
-            WorkMonth august = new WorkMonth(2016,8);
-            TimeLogger all = new TimeLogger();
-            workDay1.addTask(task1);
-            workDay1.addTask(task2);
-            workDay2.addTask(task3);
-            workDay2.addTask(task4);
-            workDay3.addTask(task5);
-            workDay3.addTask(task6);
-            workDay4.addTask(task7);
-            workDay4.addTask(task8);
-            september.addWorkDay(workDay1);
-            september.addWorkDay(workDay2);
-            august.addWorkDay(workDay3);
-            august.addWorkDay(workDay4);
-            all.addMonth(august);
-            all.addMonth(september);
-            return all.getFirstMonthOfTimeLogger();
-        } catch (InvalidTaskIdException | NoTaskIdException | NoMonthsException |
-                NegativeMinutesOfWorkException | FutureWorkException |
-                NotMultipleQuarterHourException | NotExpectedTimeOrderException |
-                EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendNotEnabledException |
-                NotNewDateException | NotTheSameMonthException ex) {
-            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            System.err.println(ex.getMessage());
-            return new WorkMonth(1970,1);
+            return timeLogger.getMonths();
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return new ArrayList<>();
         }
-
     }
 
-    @GET
-    @Path("/workmonths/{month}")
-    public WorkMonth getJsonWorkMonth(@PathParam("month") String month) {
+    @PUT
+    @Path("/workmonths/deleteall")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public void deleteAllMonths() {
         try {
-            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
-            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
-            Task task3 = new Task("1245", "", 10, 30, 14, 45);
-            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
-            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
-            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
-            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
-            WorkDay workDay1 = new WorkDay(2016, 9, 7);
-            WorkDay workDay2 = new WorkDay(400);
-            WorkDay workDay3 = new WorkDay(2016, 8, 31);
-            WorkDay workDay4 = new WorkDay(2016, 8, 30);
-            WorkMonth september = new WorkMonth(2016,9);
-            WorkMonth august = new WorkMonth(2016,8);
-            workDay1.addTask(task1);
-            workDay1.addTask(task2);
-            workDay2.addTask(task3);
-            workDay2.addTask(task4);
-            workDay3.addTask(task5);
-            workDay3.addTask(task6);
-            workDay4.addTask(task7);
-            workDay4.addTask(task8);
-            september.addWorkDay(workDay1);
-            september.addWorkDay(workDay2);
-            august.addWorkDay(workDay3);
-            august.addWorkDay(workDay4);
-            switch (month) {
-                case "august":
-                    return august;
-                case "september":
-                    return september;
-                default:
-                    return new WorkMonth(1970,1);
+            while (timeLogger.getMonths().size() != 0) {
+                timeLogger.getMonths().remove(0);
             }
-        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException |
-                FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException |
-                EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendNotEnabledException |
-                NotNewDateException | NotTheSameMonthException ex) {
-            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            System.err.println(ex.getMessage());
-            return new WorkMonth(1970,1);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
+    }
+
+    @GET
+    @Path("/workmonths/{year}/{month}")
+    public List<WorkDay> listSpecificMonth(@PathParam("year") int year, @PathParam("month") int month) {
+        try {
+            for (WorkMonth workMonth : timeLogger.getMonths()) {
+                if (workMonth.getDate().equals(YearMonth.of(year, month))) {
+                    return workMonth.getDays();
+                }
+            }
+            WorkMonth workMonth = new WorkMonth(year, month);
+            timeLogger.addMonth(workMonth);
+            return workMonth.getDays();
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    @POST
+    @Path("/workmonths/workdays")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public WorkDay addNewDay(WorkDayRB day) {
+        try {
+            WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
+            for (WorkMonth workMonth : timeLogger.getMonths()) {
+                if (workMonth.getDate().equals(YearMonth.of(workDay.getActualDay().getYear(), workDay.getActualDay().getMonthValue()))) {
+                    workMonth.addWorkDay(workDay);
+                    return workDay;
+                }
+            }
+            WorkMonth workMonth = new WorkMonth(day.getYear(), day.getMonth());
+            timeLogger.addMonth(workMonth);
+            workMonth.addWorkDay(workDay);
+            return workDay;
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return new WorkDay(1970, 1, 1);
         }
 
     }
 
     @GET
-    public TimeLogger getJsonTimeLogger() {
+    @Path("/workmonths/{year}/{month}/{day}")
+    public List<Task> listSpecificDay(@PathParam("year") int year, @PathParam("month") int month, @PathParam("day") int day) {
         try {
-            Task task1 = new Task("4585", "This is a comment", 7, 30, 8, 45);
-            Task task2 = new Task("LT-1854", "This is a new comment", 8, 45, 10, 30);
-            Task task3 = new Task("1245", "", 10, 30, 14, 45);
-            Task task4 = new Task("1548", "This is a new day", 7, 30, 10, 0);
-            Task task5 = new Task("LT-7856", "This is a new day's new comment", 10, 45, 12, 30);
-            Task task6 = new Task("1568", "Blabla", 7, 45, 9, 45);
-            Task task7 = new Task("LT-4345", "kfhlkd", 10, 45, 13, 30);
-            Task task8 = new Task("5665", "gdfgfdg", 7, 30, 10, 0);
-            WorkDay workDay1 = new WorkDay(2016, 9, 7);
-            WorkDay workDay2 = new WorkDay(400);
-            WorkDay workDay3 = new WorkDay(2016, 8, 31);
-            WorkDay workDay4 = new WorkDay(2016, 8, 30);
-            WorkMonth september = new WorkMonth(2016,9);
-            WorkMonth august = new WorkMonth(2016,8);
-            TimeLogger all = new TimeLogger();
-            workDay1.addTask(task1);
-            workDay1.addTask(task2);
-            workDay2.addTask(task3);
-            workDay2.addTask(task4);
-            workDay3.addTask(task5);
-            workDay3.addTask(task6);
-            workDay4.addTask(task7);
-            workDay4.addTask(task8);
-            september.addWorkDay(workDay1);
-            september.addWorkDay(workDay2);
-            august.addWorkDay(workDay3);
-            august.addWorkDay(workDay4);
-            all.addMonth(august);
-            all.addMonth(september);
-            return all;
-        } catch (InvalidTaskIdException | NoTaskIdException | NegativeMinutesOfWorkException |
-                FutureWorkException | NotMultipleQuarterHourException | NotExpectedTimeOrderException |
-                EmptyTimeFieldException | NotSeparatedTaskTimesException | WeekendNotEnabledException |
-                NotNewDateException | NotTheSameMonthException ex) {
-            Logger.getLogger(TLOG16RSResource.class.getName()).log(Level.SEVERE, null, ex);
-            System.err.println(ex.getMessage());
-            return new TimeLogger();
+            for (WorkMonth workMonth : timeLogger.getMonths()) {
+                if (workMonth.getDate().equals(YearMonth.of(year, month))) {
+                    for (WorkDay workDay : workMonth.getDays()) {
+                        if (workDay.getActualDay().getDayOfMonth() == day) {
+                            return workDay.getTasks();
+                        }
+                    }
+                    WorkDay workDay = new WorkDay(year, month, day);
+                    workMonth.addWorkDay(workDay);
+                    return workDay.getTasks();
+                }
+            }
+            WorkMonth workMonth = new WorkMonth(year, month);
+            timeLogger.addMonth(workMonth);
+            WorkDay workDay = new WorkDay(year, month, day);
+            workMonth.addWorkDay(workDay);
+            return workDay.getTasks();
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return new ArrayList<>();
         }
     }
-   
-    
+
+    @POST
+    @Path("/workmonths/workdays/tasks/start")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Task startNewTask(StartTaskRB task) {
+        try {
+            Task startedTask = new Task(task.getTaskId());
+            startedTask.setComment(task.getComment());
+            startedTask.setStartTime(task.getStartTime());
+            startedTask.setEndTime(task.getStartTime());
+            for (WorkMonth workMonth : timeLogger.getMonths()) {
+                if (workMonth.getDate().equals(YearMonth.of(task.getYear(), task.getMonth()))) {
+                    for (WorkDay workDay : workMonth.getDays()) {
+                        if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
+                            workDay.addTask(startedTask);
+                            return startedTask;
+                        }
+                    }
+                    WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
+                    workMonth.addWorkDay(workDay);
+                    workDay.addTask(startedTask);
+                    return startedTask;
+                }
+            }
+            WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
+            timeLogger.addMonth(workMonth);
+            WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
+            workMonth.addWorkDay(workDay);
+            workDay.addTask(startedTask);
+            return startedTask;
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return new Task("0000");
+        }
+    }
+
+    @PUT
+    @Path("/workmonths/workdays/tasks/finish")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Task finishStartedTask(FinishingTaskRB task) {
+        try {
+            for (WorkMonth workMonth : timeLogger.getMonths()) {
+                if (workMonth.getDate().equals(YearMonth.of(task.getYear(), task.getMonth()))) {
+                    for (WorkDay workDay : workMonth.getDays()) {
+                        if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
+                            for (Task startedTask : workDay.getTasks()) {
+                                if (task.getTaskId().equals(startedTask.getTaskId())
+                                        && Task.stringToLocalTime(task.getStartTime()).equals(startedTask.getStartTime())) {
+                                    startedTask.setEndTime(task.getEndTime());
+                                    return startedTask;
+                                }
+                            }
+                            Task startedTask = new Task(task.getTaskId());
+                            startedTask.setStartTime(task.getStartTime());
+                            startedTask.setEndTime(task.getEndTime());
+                            workDay.addTask(startedTask);
+                            return startedTask;
+                        }
+                    }
+                    WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
+                    workMonth.addWorkDay(workDay);
+                    Task startedTask = new Task(task.getTaskId());
+                    startedTask.setStartTime(task.getStartTime());
+                    startedTask.setEndTime(task.getEndTime());
+                    workDay.addTask(startedTask);
+                    return startedTask;
+                }
+            }
+            WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
+            timeLogger.addMonth(workMonth);
+            WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
+            workMonth.addWorkDay(workDay);
+            Task startedTask = new Task(task.getTaskId());
+            startedTask.setStartTime(task.getStartTime());
+            startedTask.setEndTime(task.getEndTime());
+            workDay.addTask(startedTask);
+            return startedTask;
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return new Task("0000");
+        }
+    }
+
+    @PUT
+    @Path("/workmonths/workdays/tasks/modify")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Task modifyExistingTask(ModifyTaskRB task) {
+        try {
+            for (WorkMonth workMonth : timeLogger.getMonths()) {
+                if (workMonth.getDate().equals(YearMonth.of(task.getYear(), task.getMonth()))) {
+                    for (WorkDay workDay : workMonth.getDays()) {
+                        if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
+                            for (Task existingTask : workDay.getTasks()) {
+                                if (task.getTaskId().equals(existingTask.getTaskId())
+                                        && Task.stringToLocalTime(task.getStartTime()).equals(existingTask.getStartTime())) {
+                                    existingTask.setTaskId(task.getNewTaskId());
+                                    existingTask.setComment(task.getNewComment());
+                                    existingTask.setStartTime(task.getNewStartTime());
+                                    existingTask.setEndTime(task.getNewEndTime());
+                                    return existingTask;
+                                }
+                            }
+                            Task newTask = new Task(task.getNewTaskId());
+                            newTask.setComment(task.getNewComment());
+                            newTask.setStartTime(task.getNewStartTime());
+                            newTask.setEndTime(task.getNewEndTime());
+                            workDay.addTask(newTask);
+                            return newTask;
+                        }
+                    }
+                    WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
+                    workMonth.addWorkDay(workDay);
+                    Task newTask = new Task(task.getNewTaskId());
+                    newTask.setComment(task.getNewComment());
+                    newTask.setStartTime(task.getNewStartTime());
+                    newTask.setEndTime(task.getNewEndTime());
+                    workDay.addTask(newTask);
+                    return newTask;
+                }
+            }
+            WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
+            timeLogger.addMonth(workMonth);
+            WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
+            workMonth.addWorkDay(workDay);
+            Task newTask = new Task(task.getNewTaskId());
+            newTask.setComment(task.getNewComment());
+            newTask.setStartTime(task.getNewStartTime());
+            newTask.setEndTime(task.getNewEndTime());
+            workDay.addTask(newTask);
+            return newTask;
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
+        return new Task("0000");
+    }
+
+    @PUT
+    @Path("/workmonths/workdays/tasks/delete")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public void deleteTask(DeleteTaskRB task) {
+        try {
+            for (WorkMonth workMonth : timeLogger.getMonths()) {
+                if (workMonth.getDate().equals(YearMonth.of(task.getYear(), task.getMonth()))) {
+                    for (WorkDay workDay : workMonth.getDays()) {
+                        if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
+                            for (int i = 0; i < workDay.getTasks().size(); i++) {
+                                if (task.getTaskId().equals(workDay.getTasks().get(i).getTaskId())
+                                        && Task.stringToLocalTime(task.getStartTime()).equals(workDay.getTasks().get(i).getStartTime())) {
+                                    workDay.getTasks().remove(i);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
+    }
+
 }
