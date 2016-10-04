@@ -1,5 +1,6 @@
 package com.rozsalovasz.tlog16rs.resources;
 
+import com.avaje.ebean.Ebean;
 import com.rozsalovasz.tlog16rs.beans.DeleteTaskRB;
 import com.rozsalovasz.tlog16rs.beans.FinishingTaskRB;
 import com.rozsalovasz.tlog16rs.beans.ModifyTaskRB;
@@ -11,6 +12,7 @@ import com.rozsalovasz.tlog16rs.core.Task;
 import com.rozsalovasz.tlog16rs.core.TimeLogger;
 import com.rozsalovasz.tlog16rs.core.WorkDay;
 import com.rozsalovasz.tlog16rs.core.WorkMonth;
+import com.rozsalovasz.tlog16rs.entities.TestEntity;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,21 +24,32 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+import com.avaje.ebean.EbeanServer;
+import com.avaje.ebean.SqlUpdate;
+import com.rozsalovasz.tlog16rs.CreateDatabase;
+
+
 
 @Path("/timelogger")
-@Produces(MediaType.APPLICATION_JSON)
+
 public class TLOG16RSResource {
 
     private TimeLogger timeLogger = new TimeLogger();
 
 
-    /*@POST
-    @Path("/workmonths/{year}/{month}")
-    public WorkMonth addNewMonthPath(@PathParam("year") int year, @PathParam("month") int month) {
-        WorkMonth workMonth = new WorkMonth(year, month);
-        timeLogger.addMonth(workMonth);
-        return workMonth;
-    }*/
+	@POST
+    @Path("/save/test")
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.TEXT_PLAIN)
+	public String writeTestText(String text) {
+
+        TestEntity testEntity = new TestEntity();
+		testEntity.setTextTest(text);
+		Ebean.save(testEntity);
+
+        return text;
+    }
+
     @POST
     @Path("/workmonths")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -54,6 +67,7 @@ public class TLOG16RSResource {
 
     @GET
     @Path("/workmonths")
+    @Produces(MediaType.APPLICATION_JSON)
     public List<WorkMonth> listWorkMonths() {
         try {
             return timeLogger.getMonths();
@@ -79,6 +93,7 @@ public class TLOG16RSResource {
 
     @GET
     @Path("/workmonths/{year}/{month}")
+    @Produces(MediaType.APPLICATION_JSON)
     public List<WorkDay> listSpecificMonth(@PathParam("year") int year, @PathParam("month") int month) {
         try {
             for (WorkMonth workMonth : timeLogger.getMonths()) {
@@ -98,6 +113,7 @@ public class TLOG16RSResource {
     @POST
     @Path("/workmonths/workdays")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     public WorkDay addNewDay(WorkDayRB day) {
         try {
             WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
@@ -120,6 +136,7 @@ public class TLOG16RSResource {
 
     @GET
     @Path("/workmonths/{year}/{month}/{day}")
+    @Produces(MediaType.APPLICATION_JSON)
     public List<Task> listSpecificDay(@PathParam("year") int year, @PathParam("month") int month, @PathParam("day") int day) {
         try {
             for (WorkMonth workMonth : timeLogger.getMonths()) {
@@ -148,6 +165,7 @@ public class TLOG16RSResource {
     @POST
     @Path("/workmonths/workdays/tasks/start")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     public Task startNewTask(StartTaskRB task) {
         try {
             Task startedTask = new Task(task.getTaskId());
@@ -183,6 +201,7 @@ public class TLOG16RSResource {
     @PUT
     @Path("/workmonths/workdays/tasks/finish")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     public Task finishStartedTask(FinishingTaskRB task) {
         try {
             for (WorkMonth workMonth : timeLogger.getMonths()) {
@@ -230,6 +249,7 @@ public class TLOG16RSResource {
     @PUT
     @Path("/workmonths/workdays/tasks/modify")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     public Task modifyExistingTask(ModifyTaskRB task) {
         try {
             for (WorkMonth workMonth : timeLogger.getMonths()) {
@@ -283,6 +303,7 @@ public class TLOG16RSResource {
     @PUT
     @Path("/workmonths/workdays/tasks/delete")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     public void deleteTask(DeleteTaskRB task) {
         try {
             for (WorkMonth workMonth : timeLogger.getMonths()) {

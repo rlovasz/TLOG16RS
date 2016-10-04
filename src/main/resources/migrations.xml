@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+     xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd">
+
+    <changeSet id="1" author="name">
+	<sql>
+create table test_entity (
+  id                            integer auto_increment not null,
+  text_test                     varchar(255),
+  constraint pk_test_entity primary key (id)
+);
+
+	</sql>
+    </changeSet>
+
+</databaseChangeLog>
