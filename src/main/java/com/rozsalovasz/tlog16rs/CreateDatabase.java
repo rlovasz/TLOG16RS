@@ -64,7 +64,7 @@ public class CreateDatabase {
 		serverConfig.setName(configuration.getDbName());
 		serverConfig.setDdlGenerate(false);
 		serverConfig.setDdlRun(false);
-		serverConfig.setRegister(false);
+		serverConfig.setRegister(true);
 		serverConfig.setDataSourceConfig(dataSourceConfig);
 		serverConfig.addPackage(configuration.getDbPackage());
 		serverConfig.setDefaultServer(true);

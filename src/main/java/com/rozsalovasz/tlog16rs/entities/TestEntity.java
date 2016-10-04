@@ -24,8 +24,6 @@ public class TestEntity extends Model {
 
 	private String textTest;
 
-	private String test;
-
     @Id @GeneratedValue
 	private int Id;
 
