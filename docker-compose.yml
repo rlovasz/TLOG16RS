@@ -10,3 +10,10 @@ mariadb:
   - MYSQL_USER=timelogger
   - MYSQL_PASSWORD=633Ym2aZ5b9Wtzh4EJc4pANx
   - MYSQL_ROOT_PASSWORD=633Ym2aZ5b9Wtzh4EJc4pANx
+sonarqube:
+  image: sonarqube
+  container_name: sonarqube
+  ports:
+  - "9000:9000"
+  - "9092:9092"
+

@@ -1,3 +1,5 @@
 build
 .gradle
 database
+timelogger-create-all.sql
+timelogger-drop-all.sql

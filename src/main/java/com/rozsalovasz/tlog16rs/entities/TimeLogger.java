@@ -1,14 +1,42 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.entities;
 
+import com.rozsalovasz.tlog16rs.core.NotNewMonthException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import javax.persistence.CascadeType;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
 import lombok.Getter;
-
+import lombok.Setter;
+/**
+ * A class to store the working months
+ *
+ * @author rlovasz
+ */
+@Entity
+@Getter
 public class TimeLogger {
 
-    @Getter
+	@Id
+	@GeneratedValue
+	@Setter
+	int id;
+
+	String name;
+
+	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<WorkMonth> months = new ArrayList();
+
+	/**
+	 *
+	 * @param name The name of user
+	 */
+	public TimeLogger(String name) {
+		this.name = name;
+	}
 
     /**
      * This method adds a new month to the TimeLogger, if it is in the same
@@ -34,24 +62,10 @@ public class TimeLogger {
      */
     private boolean isNewMonth(WorkMonth workMonth) {
         for (WorkMonth wm : months) {
-            if ((wm.getDate().equals(workMonth.getDate())) && !months.isEmpty()) {
+			if ((workMonth.getMonthDate().equals(wm.getMonthDate())) && !months.isEmpty()) {
                 return false;
             }
         }
         return true;
-    }
-
-    /**
-     * This method calculates the first month of the TimeLogger
-     *
-     * @return with the first month
-     */
-    public WorkMonth getFirstMonthOfTimeLogger(){
-        if (!months.isEmpty()) {
-            return Collections.min(months);
-        }
-
-        throw new NoMonthsException("There are no months yet.");
-    }
-
+	}
 }

@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.rozsalovasz.tlog16rs;
 
 import com.avaje.ebean.EbeanServer;
@@ -11,8 +6,6 @@ import com.avaje.ebean.config.DataSourceConfig;
 import com.avaje.ebean.config.ServerConfig;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import liquibase.Contexts;
 import liquibase.Liquibase;
 import liquibase.database.jvm.JdbcConnection;
@@ -22,8 +15,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.avaje.agentloader.AgentLoader;
 
 /**
+ * This class set up an EbeanServer to communicate with the database, and updates the database through liquibase
  *
- * @author precognox
+ * @author rlovasz
  */
 @Slf4j
 public class CreateDatabase {
@@ -32,11 +26,16 @@ public class CreateDatabase {
 	private DataSourceConfig dataSourceConfig;
 	private ServerConfig serverConfig;
 
+	/**
+	 * The constructor updates the database schema through liquibase and set up the EbeanServer
+	 *
+	 * @param configuration contains the login informations to set up the connection
+	 */
 	public CreateDatabase(TLOG16RSConfiguration configuration) {
 		try {
 			updateSchema(configuration);
 		} catch (LiquibaseException | SQLException | ClassNotFoundException ex) {
-			Logger.getLogger(CreateDatabase.class.getName()).log(Level.SEVERE, null, ex);
+			log.error(ex.getMessage());
 		}
 		agentLoader();
 		setDataSourceConfig(configuration);
@@ -89,6 +88,10 @@ public class CreateDatabase {
 
 	}
 
+	/**
+	 *
+	 * @return with the set up EbeanServer object
+	 */
 	public EbeanServer getEbeanServer() {
 
 		return ebeanServer;
