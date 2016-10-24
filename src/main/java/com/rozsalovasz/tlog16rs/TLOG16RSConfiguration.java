@@ -23,7 +23,4 @@ public class TLOG16RSConfiguration extends Configuration {
 
 	@NotEmpty
 	protected String dbName;
-
-	@NotEmpty
-	protected String dbPackage;
 }
