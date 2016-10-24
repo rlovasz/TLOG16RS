@@ -7,13 +7,17 @@ import com.rozsalovasz.tlog16rs.beans.ModifyTaskRB;
 import com.rozsalovasz.tlog16rs.beans.StartTaskRB;
 import com.rozsalovasz.tlog16rs.beans.WorkDayRB;
 import com.rozsalovasz.tlog16rs.beans.WorkMonthRB;
+import com.rozsalovasz.tlog16rs.core.WeekendNotEnabledException;
+import com.rozsalovasz.tlog16rs.core.SeeOtherException;
 import com.rozsalovasz.tlog16rs.entities.Task;
 import com.rozsalovasz.tlog16rs.entities.TimeLogger;
 import com.rozsalovasz.tlog16rs.entities.WorkDay;
 import com.rozsalovasz.tlog16rs.entities.WorkMonth;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -21,7 +25,9 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -45,13 +51,8 @@ public class TLOG16RSResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public WorkMonth addNewMonth(WorkMonthRB month) {
 		try {
-			if (Ebean.find(TimeLogger.class).findList().isEmpty()) {
-				TimeLogger timeLogger = new TimeLogger("Lovász Rózsa");
-				return addNewMonthAndSaveTimeLogger(month.getYear(), month.getMonth(), timeLogger);
-			} else {
-				TimeLogger timeLogger = Ebean.find(TimeLogger.class).findUnique();
-				return addNewMonthAndSaveTimeLogger(month.getYear(), month.getMonth(), timeLogger);
-			}
+			TimeLogger timeLogger = getTimeLogger();
+			return addNewMonthAndSaveTimeLogger(month.getYear(), month.getMonth(), timeLogger);
 		} catch (Exception e) {
 			log.error(e.getMessage());
 			return new WorkMonth(1970, 1);
@@ -111,7 +112,7 @@ public class TLOG16RSResource {
 					return workMonth.getDays();
 				}
 			}
-			TimeLogger timeLogger = new TimeLogger("Lovász Rózsa");
+			TimeLogger timeLogger = getTimeLogger();
 			WorkMonth workMonth = addNewMonthAndSaveTimeLogger(year, month, timeLogger);
 			return workMonth.getDays();
 		} catch (Exception e) {
@@ -121,8 +122,7 @@ public class TLOG16RSResource {
 	}
 
 	/**
-	 * This is a POST method, which saves a new work day into the database, which is specified in the WorkDayRB type parameter.
-	 * If the work month is not created yet, it creates it.
+	 * This is a POST method, which saves a new work day into the database, which is specified in the WorkDayRB type parameter. If the work month is not created yet, it creates it.
 	 *
 	 * @param day Specifies the day to create with the following data: year, month, day, requiredHours
 	 * @return with the created WorkDay object
@@ -131,17 +131,54 @@ public class TLOG16RSResource {
 	@Path("/workmonths/workdays")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public WorkDay addNewDay(WorkDayRB day) {
+	public Response addNewDay(WorkDayRB day) throws WeekendNotEnabledException {
+		Response response;
 		try {
 			WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
 			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
 				if (workMonth.getMonthDate().equals(YearMonth.of(workDay.getActualDay().getYear(), workDay.getActualDay().getMonthValue()).toString())) {
 					addWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(workMonth, workDay);
+					response = Response.status(Response.Status.OK).build();
+					return response;
+				}
+			}
+			TimeLogger timeLogger = getTimeLogger();
+			addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
+			response = Response.status(Response.Status.OK).build();
+			return response;
+		}catch(WeekendNotEnabledException e){
+			response = Response.status(Response.Status.SEE_OTHER).build();
+			return response;
+		}catch (Exception e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.OK).build();
+			return response;
+		}
+		
+
+	}
+
+	/**
+	 * This is a POST method, which saves a new work day on the weekend into the database, which is specified in the WorkDayRB type parameter. If the work month is not created yet, it creates it.
+	 *
+	 * @param day Specifies the weekend day to create with the following data: year, month, day, requiredHours
+	 * @return with the created WorkDay object
+	 */
+	@POST
+	@Path("/workmonths/workdays/weekend")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public WorkDay addNewDayWeekend(WorkDayRB day) {
+		try {
+			WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
+			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
+				if (workMonth.getMonthDate().equals(YearMonth.of(workDay.getActualDay().getYear(), workDay.getActualDay().getMonthValue()).toString())) {
+					addWeekendWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(workMonth, workDay);
 					return workDay;
 				}
 			}
-			TimeLogger timeLogger = new TimeLogger("Lovász Rózsa");
-			addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
+			TimeLogger timeLogger = getTimeLogger();
+			addNewMonthAndWeekendDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
 			return workDay;
 		} catch (Exception e) {
 			log.error(e.getMessage());
@@ -150,130 +187,180 @@ public class TLOG16RSResource {
 
 	}
 
-	/**
-	 * This is a GET method, which displays the list of tasks of the day specified by the parameters in the path
-	 *
-	 * @param year
-	 * @param month
-	 * @param day
-	 * @return with the list of Task objects
-	 */
-	@GET
-	@Path("/workmonths/{year}/{month}/{day}")
-	@Produces(MediaType.APPLICATION_JSON)
-	public List<Task> listSpecificDay(@PathParam("year") int year, @PathParam("month") int month, @PathParam("day") int day) {
-		try {
-			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
-				if (workMonth.getMonthDate().equals(YearMonth.of(year, month).toString())) {
-					return getTasksOfSpecifiedDayOrEmptyListIfNotExist(workMonth, day, year, month);
-				}
-			}
-			TimeLogger timeLogger = new TimeLogger("Lovász Rózsa");
-			WorkDay workDay = new WorkDay(year, month, day);
-			addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(year, month, timeLogger, workDay);
-			return workDay.getTasks();
-		} catch (Exception e) {
-			log.error(e.getMessage());
-			return new ArrayList<>();
-		}
-	}
-
-	/**
-	 * This is a POST method, which creates a new Task in the database, where the endTime is not known yet.
-	 * If the day or the month is not created yet, then it creates them.
-	 *
-	 * @param task This is a StartTaskRB type object, it has the following required fields: int year, int month, int day,
-	 * String taskId, String comment, String startTime
-	 * @return with the Task object
-	 */
-	@POST
-	@Path("/workmonths/workdays/tasks/start")
+	@PUT
+	@Path("/workmonths/workdays/modify")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Task startNewTask(StartTaskRB task) {
+	public WorkDay modifyRequiredMinPerDay(WorkDayRB day) {
 		try {
-			Task startedTask = new Task(task.getTaskId());
-			startedTask.setComment(task.getComment());
-			startedTask.setStartTime(task.getStartTime());
-			startedTask.setEndTime(task.getStartTime());
 			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
-				if (isTheSpecifiedDayExistThenAddTheTask(workMonth, task, startedTask)
-						&& workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-					return startedTask;
-				} else if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-					return createTheDayThenAddTheTask(task, workMonth, startedTask);
+				if (workMonth.getMonthDate().equals(YearMonth.of(day.getYear(), day.getMonth()).toString())) {
+					for (WorkDay workDay : Ebean.find(WorkDay.class).findList()) {
+						if (workDay.getActualDay().equals(LocalDate.of(day.getYear(), day.getMonth(), day.getDay()))) {
+							TimeLogger timeLogger = Ebean.find(TimeLogger.class).findUnique();
+							workDay.setRequiredMinPerDay((int) (day.getRequiredHours() * 60));
+							getStatistics(workDay, workMonth);
+							Ebean.save(workDay);
+							Ebean.update(timeLogger);
+							return workDay;
+						} 
+						
+					}
+					TimeLogger timeLogger = Ebean.find(TimeLogger.class).findUnique();
+					WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
+					workMonth.addWorkDay(workDay);
+					getStatistics(workDay, workMonth);
+					saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
+					return workDay;
 				}
 			}
-			return createMonthAndDayThenAddTask(task, startedTask);
-		} catch (Exception e) {
+			TimeLogger timeLogger = getTimeLogger();
+			WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
+			addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
+			return workDay;
+			}catch(Exception e){
 			log.error(e.getMessage());
+			return new WorkDay(1970, 1, 1);
+		}
+		}
+
+		/**
+		 * This is a GET method, which displays the list of tasks of the day specified by the parameters in the path
+		 *
+		 * @param year
+		 * @param month
+		 * @param day
+		 * @return with the list of Task objects
+		 */
+		@GET
+		@Path("/workmonths/{year}/{month}/{day}")
+		@Produces(MediaType.APPLICATION_JSON)
+		public List<Task> listSpecificDay
+		(@PathParam("year")
+		int year, 
+		@PathParam("month") int month, 
+		@PathParam("day") int day
+		
+			) {
+		try {
+				for ( WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
+					if (workMonth.getMonthDate().equals(YearMonth.of(year, month).toString())) {
+						return getTasksOfSpecifiedDayOrEmptyListIfNotExist(workMonth, day, year, month);
+					}
+				}
+				TimeLogger timeLogger = getTimeLogger();
+				WorkDay workDay = new WorkDay(year, month, day);
+				addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(year, month, timeLogger, workDay);
+				return workDay.getTasks();
+			} catch (Exception e) {
+				log.error(e.getMessage());
+				return new ArrayList<>();
+			}
+		}
+
+		/**
+		 * This is a POST method, which creates a new Task in the database, where the endTime is not known yet. If the day or the month is not created yet, then it creates them.
+		 *
+		 * @param task This is a StartTaskRB type object, it has the following required fields: int year, int month, int day, String taskId, String comment, String startTime
+		 * @return with the Task object
+		 */
+		@POST
+		@Path("/workmonths/workdays/tasks/start")
+		@Consumes(MediaType.APPLICATION_JSON)
+		@Produces(MediaType.APPLICATION_JSON)
+		public Task startNewTask
+		(StartTaskRB task
+		
+			) {
+		try {
+				Task startedTask = new Task(task.getTaskId());
+				startedTask.setComment(task.getComment());
+				startedTask.setStartTime(task.getStartTime());
+				startedTask.setEndTime(task.getStartTime());
+				for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
+					if (isTheSpecifiedDayExistThenAddTheTask(workMonth, task, startedTask)
+							&& workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
+						return startedTask;
+					} else if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
+						return createTheDayThenAddTheTask(task, workMonth, startedTask);
+					}
+				}
+				return createMonthAndDayThenAddTask(task, startedTask);
+			} catch (Exception e) {
+				log.error(e.getMessage());
+				return new Task("0000");
+			}
+		}
+
+		/**
+		 * This is a PUT object, which finishes a started Task with the information of endTime. If the month, the day or the task doesn't exist yet, it created them with the given informations.
+		 *
+		 * @param task it is a FinishingTaskRB object, it has the following required fields: int year, int month, int day, String taskId, String startTime, String endTime
+		 * @return with the finished Task object
+		 */
+		@PUT
+		@Path("/workmonths/workdays/tasks/finish")
+		@Consumes(MediaType.APPLICATION_JSON)
+		@Produces(MediaType.APPLICATION_JSON)
+		public Task finishStartedTask
+		(FinishingTaskRB task
+		
+			) {
+		try {
+				return getTheContainingMonthAndDayAndFinishTaskOrCreateMonthDayAndTask(task);
+			} catch (Exception e) {
+				log.error(e.getMessage());
+				return new Task("0000");
+			}
+		}
+
+		/**
+		 * This is a PUT method to modify any property of the specified Task. If the month, the day or the task doesn't exist, it will create them with the given informations.
+		 *
+		 * @param task This is a ModifyTaskRB type object, which has the following required fields: int year, int month, int day, String taskId, String startTime, String newTaskId, String newComment, String newStartTime, String newEndTime
+		 * @return with the modified Task object
+		 */
+		@PUT
+		@Path("/workmonths/workdays/tasks/modify")
+		@Consumes(MediaType.APPLICATION_JSON)
+		@Produces(MediaType.APPLICATION_JSON)
+		public Task modifyExistingTask
+		(ModifyTaskRB task
+		
+			) {
+		try {
+				return getContainingMonthAndModifyTaskOrCreateMonthDayAndTask(task);
+			} catch (Exception e) {
+				log.error(e.getMessage());
+			}
 			return new Task("0000");
 		}
-	}
 
-	/**
-	 * This is a PUT object, which finishes a started Task with the information of endTime. 
-	 * If the month, the day or the task doesn't exist yet, it created them with the given informations.
-	 *
-	 * @param task it is a FinishingTaskRB object, it has the following required fields: int year, int month, int day, 
-	 * String taskId, String startTime, String endTime
-	 * @return with the finished Task object
-	 */
-	@PUT
-	@Path("/workmonths/workdays/tasks/finish")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public Task finishStartedTask(FinishingTaskRB task) {
+		/**
+		 * This is a PUT method to delete an existing Task.
+		 *
+		 * @param task This is a DeleteTaskRB type object, which has the following required fields: int year, int month, int day, String taskId, String startTime
+		 */
+		@PUT
+		@Path("/workmonths/workdays/tasks/delete")
+		@Consumes(MediaType.APPLICATION_JSON)
+		@Produces(MediaType.APPLICATION_JSON)
+		public void deleteTask
+		(DeleteTaskRB task
+		
+			) {
 		try {
-			return getTheContainingMonthAndDayAndFinishTaskOrCreateMonthDayAndTask(task);
-		} catch (Exception e) {
-			log.error(e.getMessage());
-			return new Task("0000");
-		}
-	}
-
-	/**
-	 * This is a PUT method to modify any property of the specified Task.
-	 * If the month, the day or the task doesn't exist, it will create them with the given informations.
-	 * 
-	 * @param task This is a ModifyTaskRB type object, which has the following required fields: int year, int month, int day,
-	 * String taskId, String startTime, String newTaskId, String newComment, String newStartTime, String newEndTime
-	 * @return with the modified Task object
-	 */
-	@PUT
-	@Path("/workmonths/workdays/tasks/modify")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public Task modifyExistingTask(ModifyTaskRB task) {
-		try {
-			return getContainingMonthAndModifyTaskOrCreateMonthDayAndTask(task);
-		} catch (Exception e) {
-			log.error(e.getMessage());
-		}
-		return new Task("0000");
-	}
-
-	/**
-	 * This is a PUT method to delete an existing Task.
-	 * 
-	 * @param task This is a DeleteTaskRB type object, which has the following required fields: int year, int month, int day,
-	 * String taskId, String startTime
-	 */
-	@PUT
-	@Path("/workmonths/workdays/tasks/delete")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public void deleteTask(DeleteTaskRB task) {
-		try {
-			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
-				if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-					getDayAndDeleteItsSpecifiedTask(workMonth, task);
+				for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
+					if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
+						getDayAndDeleteItsSpecifiedTask(workMonth, task);
+					}
 				}
+			} catch (Exception e) {
+				log.error(e.getMessage());
 			}
-		} catch (Exception e) {
-			log.error(e.getMessage());
 		}
-	}
+
+	
 
 	private void getDayAndDeleteItsSpecifiedTask(WorkMonth workMonth, DeleteTaskRB task) {
 		for (WorkDay workDay : workMonth.getDays()) {
@@ -314,9 +401,24 @@ public class TLOG16RSResource {
 		Ebean.save(timeLogger);
 	}
 
+	private void addNewMonthAndWeekendDayGetStaticsticsAndSaveTimeLogger(int year, int month, TimeLogger timeLogger, WorkDay workDay) {
+		WorkMonth workMonth = new WorkMonth(year, month);
+		timeLogger.addMonth(workMonth);
+		workMonth.addWorkDay(workDay, true);
+		getStatistics(workDay, workMonth);
+		Ebean.save(timeLogger);
+	}
+
 	private void addWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(WorkMonth workMonth, WorkDay workDay) {
 		TimeLogger timeLogger = Ebean.find(TimeLogger.class).findUnique();
 		workMonth.addWorkDay(workDay);
+		getStatistics(workDay, workMonth);
+		saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
+	}
+
+	private void addWeekendWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(WorkMonth workMonth, WorkDay workDay) {
+		TimeLogger timeLogger = Ebean.find(TimeLogger.class).findUnique();
+		workMonth.addWorkDay(workDay, true);
 		getStatistics(workDay, workMonth);
 		saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
 	}
@@ -351,7 +453,7 @@ public class TLOG16RSResource {
 	}
 
 	private Task createMonthAndDayThenAddTask(StartTaskRB task, Task startedTask) {
-		TimeLogger timeLogger = new TimeLogger("Lovász Rózsa");
+		TimeLogger timeLogger = getTimeLogger();
 		WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
 		WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
 		addMonthDayTaskGetStatisticsAndSave(timeLogger, workMonth, workDay, startedTask);
@@ -398,7 +500,7 @@ public class TLOG16RSResource {
 				return getSpecifiedDayAndFinishTheTaskOrCreateDayAndTask(workMonth, task);
 			}
 		}
-		TimeLogger timeLogger = new TimeLogger("Lovász Rózsa");
+		TimeLogger timeLogger = getTimeLogger();
 		WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
 		WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
 		Task startedTask = new Task(task.getTaskId());
@@ -438,7 +540,7 @@ public class TLOG16RSResource {
 				return getDayAndModifyItsTaskOrCreateDayAndTask(workMonth, task);
 			}
 		}
-		TimeLogger timeLogger = new TimeLogger("Lovász Rózsa");
+		TimeLogger timeLogger = getTimeLogger();
 		WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
 		WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
 		Task newTask = new Task(task.getNewTaskId());
@@ -480,6 +582,16 @@ public class TLOG16RSResource {
 		getStatistics(workDay, workMonth);
 		Ebean.save(workMonth);
 		return newTask;
+	}
+
+	private TimeLogger getTimeLogger() {
+		TimeLogger timeLogger;
+		if (Ebean.find(TimeLogger.class).findList().isEmpty()) {
+			timeLogger = new TimeLogger("Lovász Rózsa");
+		} else {
+			timeLogger = Ebean.find(TimeLogger.class).findUnique();
+		}
+		return timeLogger;
 	}
 
 }

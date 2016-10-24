@@ -4,6 +4,10 @@ import com.avaje.ebean.EbeanServer;
 import com.avaje.ebean.EbeanServerFactory;
 import com.avaje.ebean.config.DataSourceConfig;
 import com.avaje.ebean.config.ServerConfig;
+import com.rozsalovasz.tlog16rs.entities.Task;
+import com.rozsalovasz.tlog16rs.entities.TimeLogger;
+import com.rozsalovasz.tlog16rs.entities.WorkDay;
+import com.rozsalovasz.tlog16rs.entities.WorkMonth;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import liquibase.Contexts;
@@ -59,13 +63,17 @@ public class CreateDatabase {
 	}
 
 	private void setServerConfig(TLOG16RSConfiguration configuration) {
+		log.info("Setup ebean server");
 		serverConfig = new ServerConfig();
 		serverConfig.setName(configuration.getDbName());
 		serverConfig.setDdlGenerate(false);
 		serverConfig.setDdlRun(false);
 		serverConfig.setRegister(true);
 		serverConfig.setDataSourceConfig(dataSourceConfig);
-		serverConfig.addPackage(configuration.getDbPackage());
+		serverConfig.addClass(Task.class);
+		serverConfig.addClass(WorkDay.class);
+		serverConfig.addClass(WorkMonth.class);
+		serverConfig.addClass(TimeLogger.class);
 		serverConfig.setDefaultServer(true);
 		
 	}

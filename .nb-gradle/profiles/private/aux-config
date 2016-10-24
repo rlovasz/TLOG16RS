@@ -5,32 +5,22 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
       <group>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/TLOG16RSApplication.java</file>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/beans/FinishingTaskRB.java</file>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/entities/TimeLogger.java</file>
+        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/resources/pages/index.css</file>
+        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/resources/pages/index.html</file>
+        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/resources/pages/listTasks.html</file>
         <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/resources/TLOG16RSResource.java</file>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/beans/StartTaskRB.java</file>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/entities/WorkDay.java</file>
         <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/entities/WorkMonth.java</file>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/CreateDatabase.java</file>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/entities/Task.java</file>
+        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/resources/pages/index.js</file>
       </group>
     </open-files>
-    <editor-bookmarks lastBookmarkId="1" xmlns="http://www.netbeans.org/ns/editor-bookmarks/2">
-      <file>
-        <url>src/main/java/com/rozsalovasz/tlog16rs/resources/TLOG16RSResource.java</url>
-        <bookmark id="1">
-          <name/>
-          <line>88</line>
-          <key/>
-        </bookmark>
-      </file>
-    </editor-bookmarks>
+    <editor-bookmarks lastBookmarkId="0" xmlns="http://www.netbeans.org/ns/editor-bookmarks/2"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
       <group>
+        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/resources/pages/index.css</file>
+        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/resources/pages/index.html</file>
+        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/resources/pages/listTasks.html</file>
         <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/resources/TLOG16RSResource.java</file>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/entities/WorkDay.java</file>
-        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/java/com/rozsalovasz/tlog16rs/entities/WorkMonth.java</file>
+        <file>file:/home/precognox/NetBeansProjects/TLOG16RS/src/main/resources/pages/index.js</file>
       </group>
     </open-files>
   </auxiliary>

@@ -2,5 +2,4 @@ dbDriver: org.mariadb.jdbc.Driver
 dbUrl: jdbc:mariadb://127.0.0.1:9001/timelogger
 dbUsername: timelogger
 dbPassword: 633Ym2aZ5b9Wtzh4EJc4pANx
-dbPackage: com.rozsalovasz.tlog16rs.entities
 dbName: timelogger
