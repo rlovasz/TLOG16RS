@@ -7,8 +7,14 @@ import com.rozsalovasz.tlog16rs.beans.ModifyTaskRB;
 import com.rozsalovasz.tlog16rs.beans.StartTaskRB;
 import com.rozsalovasz.tlog16rs.beans.WorkDayRB;
 import com.rozsalovasz.tlog16rs.beans.WorkMonthRB;
+import com.rozsalovasz.tlog16rs.core.EmptyTimeFieldException;
+import com.rozsalovasz.tlog16rs.core.FutureWorkException;
+import com.rozsalovasz.tlog16rs.core.InvalidTaskIdException;
+import com.rozsalovasz.tlog16rs.core.NegativeMinutesOfWorkException;
+import com.rozsalovasz.tlog16rs.core.NotExpectedTimeOrderException;
+import com.rozsalovasz.tlog16rs.core.NotMultipleQuarterHourException;
+import com.rozsalovasz.tlog16rs.core.NotSeparatedTaskTimesException;
 import com.rozsalovasz.tlog16rs.core.WeekendNotEnabledException;
-import com.rozsalovasz.tlog16rs.core.SeeOtherException;
 import com.rozsalovasz.tlog16rs.entities.Task;
 import com.rozsalovasz.tlog16rs.entities.TimeLogger;
 import com.rozsalovasz.tlog16rs.entities.WorkDay;
@@ -17,7 +23,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -25,7 +30,6 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -131,7 +135,7 @@ public class TLOG16RSResource {
 	@Path("/workmonths/workdays")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response addNewDay(WorkDayRB day) throws WeekendNotEnabledException {
+	public Response addNewDay(WorkDayRB day) {
 		Response response;
 		try {
 			WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
@@ -146,16 +150,23 @@ public class TLOG16RSResource {
 			addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
 			response = Response.status(Response.Status.OK).build();
 			return response;
-		}catch(WeekendNotEnabledException e){
-			response = Response.status(Response.Status.SEE_OTHER).build();
-			return response;
-		}catch (Exception e) {
+		} catch (WeekendNotEnabledException e) {
 			log.error(e.getMessage());
-			response = Response.status(Response.Status.OK).build();
+			response = Response.status(428).build();
+			return response;
+		} catch (FutureWorkException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.FORBIDDEN).build();
+			return response;
+		} catch (NegativeMinutesOfWorkException e) {
+			log.error(e.getMessage());
+			response = Response.status(449).build();//Retry with status code
+			return response;
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.BAD_REQUEST).build();
 			return response;
 		}
-		
-
 	}
 
 	/**
@@ -168,30 +179,42 @@ public class TLOG16RSResource {
 	@Path("/workmonths/workdays/weekend")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public WorkDay addNewDayWeekend(WorkDayRB day) {
+	public Response addNewDayWeekend(WorkDayRB day) {
+		Response response;
 		try {
 			WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
 			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
 				if (workMonth.getMonthDate().equals(YearMonth.of(workDay.getActualDay().getYear(), workDay.getActualDay().getMonthValue()).toString())) {
 					addWeekendWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(workMonth, workDay);
-					return workDay;
+					response = Response.status(Response.Status.OK).build();
+					return response;
 				}
 			}
 			TimeLogger timeLogger = getTimeLogger();
 			addNewMonthAndWeekendDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
-			return workDay;
+			response = Response.status(Response.Status.OK).build();
+			return response;
+		} catch (FutureWorkException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.FORBIDDEN).build();
+			return response;
+		} catch (NegativeMinutesOfWorkException e) {
+			log.error(e.getMessage());
+			response = Response.status(449).build();//Retry with status code
+			return response;
 		} catch (Exception e) {
 			log.error(e.getMessage());
-			return new WorkDay(1970, 1, 1);
+			response = Response.status(Response.Status.BAD_REQUEST).build();
+			return response;
 		}
-
 	}
 
 	@PUT
 	@Path("/workmonths/workdays/modify")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public WorkDay modifyRequiredMinPerDay(WorkDayRB day) {
+	public Response modifyRequiredMinPerDay(WorkDayRB day) {
+		Response response;
 		try {
 			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
 				if (workMonth.getMonthDate().equals(YearMonth.of(day.getYear(), day.getMonth()).toString())) {
@@ -202,165 +225,211 @@ public class TLOG16RSResource {
 							getStatistics(workDay, workMonth);
 							Ebean.save(workDay);
 							Ebean.update(timeLogger);
-							return workDay;
-						} 
-						
+							response = Response.status(Response.Status.OK).build();
+							return response;
+						}
+
 					}
 					TimeLogger timeLogger = Ebean.find(TimeLogger.class).findUnique();
 					WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
 					workMonth.addWorkDay(workDay);
 					getStatistics(workDay, workMonth);
 					saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
-					return workDay;
+					response = Response.status(Response.Status.OK).build();
+					return response;
 				}
 			}
 			TimeLogger timeLogger = getTimeLogger();
 			WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
 			addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
-			return workDay;
-			}catch(Exception e){
+			response = Response.status(Response.Status.OK).build();
+			return response;
+		} catch (NegativeMinutesOfWorkException e) {
 			log.error(e.getMessage());
-			return new WorkDay(1970, 1, 1);
+			response = Response.status(449).build();//Retry with status code
+			return response;
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.BAD_REQUEST).build();
+			return response;
 		}
-		}
+	}
 
-		/**
-		 * This is a GET method, which displays the list of tasks of the day specified by the parameters in the path
-		 *
-		 * @param year
-		 * @param month
-		 * @param day
-		 * @return with the list of Task objects
-		 */
-		@GET
-		@Path("/workmonths/{year}/{month}/{day}")
-		@Produces(MediaType.APPLICATION_JSON)
-		public List<Task> listSpecificDay
-		(@PathParam("year")
-		int year, 
-		@PathParam("month") int month, 
-		@PathParam("day") int day
-		
-			) {
+	/**
+	 * This is a GET method, which displays the list of tasks of the day specified by the parameters in the path
+	 *
+	 * @param year
+	 * @param month
+	 * @param day
+	 * @return with the list of Task objects
+	 */
+	@GET
+	@Path("/workmonths/{year}/{month}/{day}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<Task> listSpecificDay(@PathParam("year") int year, @PathParam("month") int month, @PathParam("day") int day) {
 		try {
-				for ( WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
-					if (workMonth.getMonthDate().equals(YearMonth.of(year, month).toString())) {
-						return getTasksOfSpecifiedDayOrEmptyListIfNotExist(workMonth, day, year, month);
-					}
+			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
+				if (workMonth.getMonthDate().equals(YearMonth.of(year, month).toString())) {
+					return getTasksOfSpecifiedDayOrEmptyListIfNotExist(workMonth, day, year, month);
 				}
-				TimeLogger timeLogger = getTimeLogger();
-				WorkDay workDay = new WorkDay(year, month, day);
-				addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(year, month, timeLogger, workDay);
-				return workDay.getTasks();
-			} catch (Exception e) {
-				log.error(e.getMessage());
-				return new ArrayList<>();
 			}
+			TimeLogger timeLogger = getTimeLogger();
+			WorkDay workDay = new WorkDay(year, month, day);
+			addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(year, month, timeLogger, workDay);
+			return workDay.getTasks();
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			return new ArrayList<>();
 		}
+	}
 
-		/**
-		 * This is a POST method, which creates a new Task in the database, where the endTime is not known yet. If the day or the month is not created yet, then it creates them.
-		 *
-		 * @param task This is a StartTaskRB type object, it has the following required fields: int year, int month, int day, String taskId, String comment, String startTime
-		 * @return with the Task object
-		 */
-		@POST
-		@Path("/workmonths/workdays/tasks/start")
-		@Consumes(MediaType.APPLICATION_JSON)
-		@Produces(MediaType.APPLICATION_JSON)
-		public Task startNewTask
-		(StartTaskRB task
-		
-			) {
+	/**
+	 * This is a POST method, which creates a new Task in the database, where the endTime is not known yet. If the day or the month is not created yet, then it creates them.
+	 *
+	 * @param task This is a StartTaskRB type object, it has the following required fields: int year, int month, int day, String taskId, String comment, String startTime
+	 * @return with the Task object
+	 */
+	@POST
+	@Path("/workmonths/workdays/tasks/start")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response startNewTask(StartTaskRB task) {
+		Response response;
 		try {
-				Task startedTask = new Task(task.getTaskId());
-				startedTask.setComment(task.getComment());
-				startedTask.setStartTime(task.getStartTime());
-				startedTask.setEndTime(task.getStartTime());
-				for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
-					if (isTheSpecifiedDayExistThenAddTheTask(workMonth, task, startedTask)
-							&& workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-						return startedTask;
-					} else if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-						return createTheDayThenAddTheTask(task, workMonth, startedTask);
-					}
+			Task startedTask = new Task(task.getTaskId());
+			startedTask.setComment(task.getComment());
+			startedTask.setStartTime(task.getStartTime());
+			startedTask.setEndTime(task.getStartTime());
+			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
+				if (isTheSpecifiedDayExistThenAddTheTask(workMonth, task, startedTask)
+						&& workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
+					response = Response.status(Response.Status.OK).build();
+					return response;
+				} else if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
+					createTheDayThenAddTheTask(task, workMonth, startedTask);
+					response = Response.status(Response.Status.OK).build();
+					return response;
 				}
-				return createMonthAndDayThenAddTask(task, startedTask);
-			} catch (Exception e) {
-				log.error(e.getMessage());
-				return new Task("0000");
 			}
+			createMonthAndDayThenAddTask(task, startedTask);
+			response = Response.status(Response.Status.OK).build();
+			return response;
+		} catch (InvalidTaskIdException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.NOT_ACCEPTABLE).build();
+			return response;
+		} catch (NotSeparatedTaskTimesException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.CONFLICT).build();
+			return response;
+		}catch (EmptyTimeFieldException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.NOT_ACCEPTABLE).build();
+			return response;
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.BAD_REQUEST).build();
+			return response;
 		}
 
-		/**
-		 * This is a PUT object, which finishes a started Task with the information of endTime. If the month, the day or the task doesn't exist yet, it created them with the given informations.
-		 *
-		 * @param task it is a FinishingTaskRB object, it has the following required fields: int year, int month, int day, String taskId, String startTime, String endTime
-		 * @return with the finished Task object
-		 */
-		@PUT
-		@Path("/workmonths/workdays/tasks/finish")
-		@Consumes(MediaType.APPLICATION_JSON)
-		@Produces(MediaType.APPLICATION_JSON)
-		public Task finishStartedTask
-		(FinishingTaskRB task
-		
-			) {
+	}
+
+	/**
+	 * This is a PUT object, which finishes a started Task with the information of endTime. If the month, the day or the task doesn't exist yet, it created them with the given informations.
+	 *
+	 * @param task it is a FinishingTaskRB object, it has the following required fields: int year, int month, int day, String taskId, String startTime, String endTime
+	 * @return with the finished Task object
+	 */
+	@PUT
+	@Path("/workmonths/workdays/tasks/finish")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response finishStartedTask(FinishingTaskRB task) {
+		Response response;
 		try {
-				return getTheContainingMonthAndDayAndFinishTaskOrCreateMonthDayAndTask(task);
-			} catch (Exception e) {
-				log.error(e.getMessage());
-				return new Task("0000");
-			}
+			return getTheContainingMonthAndDayAndFinishTaskOrCreateMonthDayAndTask(task);
+		} catch (InvalidTaskIdException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.NOT_ACCEPTABLE).build();
+			return response;
+		} catch (NotSeparatedTaskTimesException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.CONFLICT).build();
+			return response;
+		} catch (NotExpectedTimeOrderException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.EXPECTATION_FAILED).build();
+			return response;
+		} catch (NotMultipleQuarterHourException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE).build();
+			return response;
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.BAD_REQUEST).build();
+			return response;
 		}
 
-		/**
-		 * This is a PUT method to modify any property of the specified Task. If the month, the day or the task doesn't exist, it will create them with the given informations.
-		 *
-		 * @param task This is a ModifyTaskRB type object, which has the following required fields: int year, int month, int day, String taskId, String startTime, String newTaskId, String newComment, String newStartTime, String newEndTime
-		 * @return with the modified Task object
-		 */
-		@PUT
-		@Path("/workmonths/workdays/tasks/modify")
-		@Consumes(MediaType.APPLICATION_JSON)
-		@Produces(MediaType.APPLICATION_JSON)
-		public Task modifyExistingTask
-		(ModifyTaskRB task
-		
-			) {
-		try {
-				return getContainingMonthAndModifyTaskOrCreateMonthDayAndTask(task);
-			} catch (Exception e) {
-				log.error(e.getMessage());
-			}
-			return new Task("0000");
-		}
+	}
 
-		/**
-		 * This is a PUT method to delete an existing Task.
-		 *
-		 * @param task This is a DeleteTaskRB type object, which has the following required fields: int year, int month, int day, String taskId, String startTime
-		 */
-		@PUT
-		@Path("/workmonths/workdays/tasks/delete")
-		@Consumes(MediaType.APPLICATION_JSON)
-		@Produces(MediaType.APPLICATION_JSON)
-		public void deleteTask
-		(DeleteTaskRB task
-		
-			) {
+	/**
+	 * This is a PUT method to modify any property of the specified Task. If the month, the day or the task doesn't exist, it will create them with the given informations.
+	 *
+	 * @param task This is a ModifyTaskRB type object, which has the following required fields: int year, int month, int day, String taskId, String startTime, String newTaskId, String newComment, String newStartTime, String newEndTime
+	 * @return with the modified Task object
+	 */
+	@PUT
+	@Path("/workmonths/workdays/tasks/modify")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response modifyExistingTask(ModifyTaskRB task) {
+		Response response;
 		try {
-				for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
-					if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-						getDayAndDeleteItsSpecifiedTask(workMonth, task);
-					}
+			return getContainingMonthAndModifyTaskOrCreateMonthDayAndTask(task);
+		} catch (InvalidTaskIdException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.NOT_ACCEPTABLE).build();
+			return response;
+		} catch (NotSeparatedTaskTimesException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.CONFLICT).build();
+			return response;
+		} catch (NotExpectedTimeOrderException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.EXPECTATION_FAILED).build();
+			return response;
+		} catch (NotMultipleQuarterHourException e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE).build();
+			return response;
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			response = Response.status(Response.Status.BAD_REQUEST).build();
+			return response;
+		}
+	}
+
+	/**
+	 * This is a PUT method to delete an existing Task.
+	 *
+	 * @param task This is a DeleteTaskRB type object, which has the following required fields: int year, int month, int day, String taskId, String startTime
+	 */
+	@PUT
+	@Path("/workmonths/workdays/tasks/delete")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public void deleteTask(DeleteTaskRB task
+	) {
+		try {
+			for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
+				if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
+					getDayAndDeleteItsSpecifiedTask(workMonth, task);
 				}
-			} catch (Exception e) {
-				log.error(e.getMessage());
 			}
+		} catch (Exception e) {
+			log.error(e.getMessage());
 		}
-
-	
+	}
 
 	private void getDayAndDeleteItsSpecifiedTask(WorkMonth workMonth, DeleteTaskRB task) {
 		for (WorkDay workDay : workMonth.getDays()) {
@@ -375,6 +444,7 @@ public class TLOG16RSResource {
 			if (task.getTaskId().equals(workDay.getTasks().get(i).getTaskId())
 					&& Task.stringToLocalTime(task.getStartTime()).equals(workDay.getTasks().get(i).getStartTime())) {
 				Ebean.delete(Task.class, i + 1);
+				Ebean.delete(workDay.getTasks().get(i));
 			}
 		}
 	}
@@ -423,14 +493,13 @@ public class TLOG16RSResource {
 		saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
 	}
 
-	private Task createTaskAddToWorkDayGetStatisticsAndSave(FinishingTaskRB task, WorkDay workDay, WorkMonth workMonth) {
+	private void createTaskAddToWorkDayGetStatisticsAndSave(FinishingTaskRB task, WorkDay workDay, WorkMonth workMonth) {
 		Task startedTask = new Task(task.getTaskId());
 		startedTask.setStartTime(task.getStartTime());
 		startedTask.setEndTime(task.getEndTime());
 		workDay.addTask(startedTask);
 		getStatistics(workDay, workMonth);
 		Ebean.save(workMonth);
-		return startedTask;
 	}
 
 	private void setModifiedProperties(Task existingTask, ModifyTaskRB task) {
@@ -452,22 +521,20 @@ public class TLOG16RSResource {
 		Ebean.save(timeLogger);
 	}
 
-	private Task createMonthAndDayThenAddTask(StartTaskRB task, Task startedTask) {
+	private void createMonthAndDayThenAddTask(StartTaskRB task, Task startedTask) {
 		TimeLogger timeLogger = getTimeLogger();
 		WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
 		WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
 		addMonthDayTaskGetStatisticsAndSave(timeLogger, workMonth, workDay, startedTask);
-		return startedTask;
 	}
 
-	private Task createTheDayThenAddTheTask(StartTaskRB task, WorkMonth workMonth, Task startedTask) {
+	private void createTheDayThenAddTheTask(StartTaskRB task, WorkMonth workMonth, Task startedTask) {
 		TimeLogger timeLogger = Ebean.find(TimeLogger.class).findUnique();
 		WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
 		workMonth.addWorkDay(workDay);
 		workDay.addTask(startedTask);
 		getStatistics(workDay, workMonth);
 		saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
-		return startedTask;
 	}
 
 	private boolean isTheSpecifiedDayExistThenAddTheTask(WorkMonth workMonth, StartTaskRB task, Task startedTask) {
@@ -494,7 +561,8 @@ public class TLOG16RSResource {
 		return workDay.getTasks();
 	}
 
-	private Task getTheContainingMonthAndDayAndFinishTaskOrCreateMonthDayAndTask(FinishingTaskRB task) {
+	private Response getTheContainingMonthAndDayAndFinishTaskOrCreateMonthDayAndTask(FinishingTaskRB task) {
+		Response response;
 		for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
 			if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
 				return getSpecifiedDayAndFinishTheTaskOrCreateDayAndTask(workMonth, task);
@@ -507,10 +575,12 @@ public class TLOG16RSResource {
 		startedTask.setStartTime(task.getStartTime());
 		startedTask.setEndTime(task.getEndTime());
 		addMonthDayTaskGetStatisticsAndSave(timeLogger, workMonth, workDay, startedTask);
-		return startedTask;
+		response = Response.status(Response.Status.OK).build();
+		return response;
 	}
 
-	private Task getSpecifiedDayAndFinishTheTaskOrCreateDayAndTask(WorkMonth workMonth, FinishingTaskRB task) {
+	private Response getSpecifiedDayAndFinishTheTaskOrCreateDayAndTask(WorkMonth workMonth, FinishingTaskRB task) {
+		Response response;
 		for (WorkDay workDay : workMonth.getDays()) {
 			if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
 				return getSpecifiedTaskOrCreateIfNotExist(workDay, task, workMonth);
@@ -518,23 +588,30 @@ public class TLOG16RSResource {
 		}
 		WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
 		workMonth.addWorkDay(workDay);
-		return createTaskAddToWorkDayGetStatisticsAndSave(task, workDay, workMonth);
+		createTaskAddToWorkDayGetStatisticsAndSave(task, workDay, workMonth);
+		response = Response.status(Response.Status.OK).build();
+		return response;
 	}
 
-	private Task getSpecifiedTaskOrCreateIfNotExist(WorkDay workDay, FinishingTaskRB task, WorkMonth workMonth) {
+	private Response getSpecifiedTaskOrCreateIfNotExist(WorkDay workDay, FinishingTaskRB task, WorkMonth workMonth) {
+		Response response;
 		for (Task startedTask : workDay.getTasks()) {
 			if (task.getTaskId().equals(startedTask.getTaskId())
 					&& Task.stringToLocalTime(task.getStartTime()).equals(startedTask.getStartTime())) {
 				startedTask.setEndTime(task.getEndTime());
 				getStatistics(workDay, workMonth);
 				Ebean.update(workMonth);
-				return startedTask;
+				response = Response.status(Response.Status.OK).build();
+				return response;
 			}
 		}
-		return createTaskAddToWorkDayGetStatisticsAndSave(task, workDay, workMonth);
+		createTaskAddToWorkDayGetStatisticsAndSave(task, workDay, workMonth);
+		response = Response.status(Response.Status.OK).build();
+		return response;
 	}
 
-	private Task getContainingMonthAndModifyTaskOrCreateMonthDayAndTask(ModifyTaskRB task) {
+	private Response getContainingMonthAndModifyTaskOrCreateMonthDayAndTask(ModifyTaskRB task) {
+		Response response;
 		for (WorkMonth workMonth : Ebean.find(WorkMonth.class).findList()) {
 			if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
 				return getDayAndModifyItsTaskOrCreateDayAndTask(workMonth, task);
@@ -546,10 +623,12 @@ public class TLOG16RSResource {
 		Task newTask = new Task(task.getNewTaskId());
 		setModifiedProperties(newTask, task);
 		addMonthDayTaskGetStatisticsAndSave(timeLogger, workMonth, workDay, newTask);
-		return newTask;
+		response = Response.status(Response.Status.OK).build();
+		return response;
 	}
 
-	private Task getDayAndModifyItsTaskOrCreateDayAndTask(WorkMonth workMonth, ModifyTaskRB task) {
+	private Response getDayAndModifyItsTaskOrCreateDayAndTask(WorkMonth workMonth, ModifyTaskRB task) {
+		Response response;
 		for (WorkDay workDay : workMonth.getDays()) {
 			if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
 				return getTaskToModifyOrCreateNew(workDay, task, workMonth);
@@ -562,18 +641,32 @@ public class TLOG16RSResource {
 		workDay.addTask(newTask);
 		getStatistics(workDay, workMonth);
 		Ebean.save(workMonth);
-		return newTask;
+		response = Response.status(Response.Status.OK).build();
+		return response;
 	}
 
-	private Task getTaskToModifyOrCreateNew(WorkDay workDay, ModifyTaskRB task, WorkMonth workMonth) {
+	private Response getTaskToModifyOrCreateNew(WorkDay workDay, ModifyTaskRB task, WorkMonth workMonth) {
+		Response response;
 		for (Task existingTask : workDay.getTasks()) {
 			if (task.getTaskId().equals(existingTask.getTaskId())
 					&& Task.stringToLocalTime(task.getStartTime()).equals(existingTask.getStartTime())) {
+				int matchingIndex = workDay.getTasks().indexOf(existingTask);
+				WorkDay testWorkDay = new WorkDay();
+				for(int i=0; i<workDay.getTasks().size(); i++){
+					if(i != matchingIndex){
+						testWorkDay.addTask(workDay.getTasks().get(i));
+					}
+				}
 				existingTask.setTaskId(task.getNewTaskId());
 				setModifiedProperties(existingTask, task);
-				getStatistics(workDay, workMonth);
-				Ebean.update(workMonth);
-				return existingTask;
+				if (!testWorkDay.isSeparatedTime(existingTask)) {
+					response = Response.status(Response.Status.CONFLICT).build();
+				} else {
+					getStatistics(workDay, workMonth);
+					Ebean.update(workMonth);
+					response = Response.status(Response.Status.OK).build();
+				}
+				return response;
 			}
 		}
 		Task newTask = new Task(task.getNewTaskId());
@@ -581,7 +674,8 @@ public class TLOG16RSResource {
 		workDay.addTask(newTask);
 		getStatistics(workDay, workMonth);
 		Ebean.save(workMonth);
-		return newTask;
+		response = Response.status(Response.Status.OK).build();
+		return response;
 	}
 
 	private TimeLogger getTimeLogger() {

@@ -182,7 +182,7 @@ public class WorkDay {
 		for (Task t : tasks) {
 			boolean existingBeginsEarlier = t.getStartTime().isBefore(task.getStartTime()) && task.getStartTime().isBefore(t.getEndTime());
 			boolean newBeginsEarlier = t.getStartTime().isAfter(task.getStartTime()) && t.getStartTime().isBefore(task.getEndTime());
-			boolean endsOrBeginsTogether = t.getEndTime().equals(task.getEndTime()) || t.getStartTime().equals(task.getStartTime());
+			boolean endsOrBeginsTogether = (t.getEndTime().equals(task.getEndTime()) && !task.getEndTime().equals(task.getStartTime())) || t.getStartTime().equals(task.getStartTime());
 			if ((existingBeginsEarlier || newBeginsEarlier || endsOrBeginsTogether) && !tasks.isEmpty()) {
 					return false;
 				}

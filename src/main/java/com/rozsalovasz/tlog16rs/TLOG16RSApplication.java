@@ -3,6 +3,7 @@ package com.rozsalovasz.tlog16rs;
 import com.avaje.ebean.EbeanServer;
 import com.rozsalovasz.tlog16rs.resources.TLOG16RSResource;
 import io.dropwizard.Application;
+import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
@@ -19,7 +20,7 @@ public class TLOG16RSApplication extends Application<TLOG16RSConfiguration> {
 
     @Override
     public void initialize(final Bootstrap<TLOG16RSConfiguration> bootstrap) {
-
+		 bootstrap.addBundle(new AssetsBundle("/pages/", "/time/", "index.html", "static"));
     }
 
     @Override

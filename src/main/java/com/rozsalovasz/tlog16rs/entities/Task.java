@@ -8,6 +8,8 @@ import com.rozsalovasz.tlog16rs.core.EmptyTimeFieldException;
 import com.rozsalovasz.tlog16rs.core.InvalidTaskIdException;
 import com.rozsalovasz.tlog16rs.core.NoTaskIdException;
 import com.rozsalovasz.tlog16rs.core.NotExpectedTimeOrderException;
+import com.rozsalovasz.tlog16rs.core.NotMultipleQuarterHourException;
+import com.rozsalovasz.tlog16rs.core.NotValidTimeExpressionException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalTime;
@@ -143,6 +145,12 @@ public class Task {
 	 */
 	public void setStartTime(int hour, int min) {
 		startTime = LocalTime.of(hour, min);
+		if (endTime != null) {
+			if (!isMultipleQuarterHour()) {
+				throw new NotMultipleQuarterHourException("The smallest portion of time is 15 minutes. "
+						+ "Please reconsider the time interval");
+			}
+		}
 	}
 
 	/**
@@ -152,6 +160,12 @@ public class Task {
 	 */
 	public void setEndTime(int hour, int min) {
 		endTime = LocalTime.of(hour, min);
+		if (startTime != null) {
+			if (!isMultipleQuarterHour()) {
+				throw new NotMultipleQuarterHourException("The smallest portion of time is 15 minutes. "
+						+ "Please reconsider the time interval");
+			}
+		}
 	}
 
 	/**
@@ -160,6 +174,12 @@ public class Task {
 	 */
 	public void setStartTime(String time) {
 		startTime = stringToLocalTime(time);
+		if (endTime != null) {
+			if (!isMultipleQuarterHour()) {
+				throw new NotMultipleQuarterHourException("The smallest portion of time is 15 minutes. "
+						+ "Please reconsider the time interval");
+			}
+		}
 	}
 
 	/**
@@ -168,6 +188,12 @@ public class Task {
 	 */
 	public void setEndTime(String time) {
 		endTime = stringToLocalTime(time);
+		if (startTime != null) {
+			if (!isMultipleQuarterHour()) {
+				throw new NotMultipleQuarterHourException("The smallest portion of time is 15 minutes. "
+						+ "Please reconsider the time interval");
+			}
+		}
 	}
 
 	/**
@@ -188,19 +214,14 @@ public class Task {
 	 */
 	public static LocalTime stringToLocalTime(String time) {
 		if (time != null) {
-			String hourString = time.substring(0, 2);
-			String minString = time.substring(3);
-			if (hourString.charAt(0) == '0') {
-				hourString = hourString.substring(1);
-			}
-			if (minString.charAt(0) == '0') {
-				minString = minString.substring(1);
-			}
+			String hourString = time.split(":")[0];
+			String minString = time.split(":")[1];
 			int hour = Integer.parseUnsignedInt(hourString);
 			int min = Integer.parseUnsignedInt(minString);
 			return LocalTime.of(hour, min);
+		} else {
+			throw new EmptyTimeFieldException("You leaved out a time argument, you should set it.");
 		}
-		throw new EmptyTimeFieldException("You leaved out a time argument, you should set it.");
 	}
 
 	/**
