@@ -1,6 +1,7 @@
 package com.rozsalovasz.tlog16rs.entities;
 
 import com.rozsalovasz.tlog16rs.core.NotNewMonthException;
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
@@ -18,7 +19,7 @@ import lombok.Setter;
  */
 @Entity
 @Getter
-public class TimeLogger {
+public class TimeLogger implements Principal{
 
 	@Id
 	@GeneratedValue
@@ -26,6 +27,8 @@ public class TimeLogger {
 	int id;
 
 	String name;
+	String password;
+	String salt;
 
 	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<WorkMonth> months = new ArrayList();
@@ -33,9 +36,13 @@ public class TimeLogger {
 	/**
 	 *
 	 * @param name The name of user
+	 * @param password
+	 * @param salt
 	 */
-	public TimeLogger(String name) {
+	public TimeLogger(String name, String password, String salt) {
 		this.name = name;
+		this.password = password;
+		this.salt = salt;
 	}
 
     /**
