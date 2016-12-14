@@ -179,7 +179,7 @@ public class WorkMonth {
 	 * @param workDay
 	 * @return true, if they are in the same year, false, if they are not
 	 */
-	private boolean hasDifferentYearValue(WorkDay workDay) {
+	public boolean hasDifferentYearValue(WorkDay workDay) {
 		return workDay.getActualDay().getYear() != getDateFromMonthDate().getYear();
 	}
 
@@ -189,7 +189,7 @@ public class WorkMonth {
 	 * @param workDay
 	 * @return true, if it is in this month, false, if it is not
 	 */
-	private boolean hasDifferentMonthValue(WorkDay workDay) {
+	public boolean hasDifferentMonthValue(WorkDay workDay) {
 		return workDay.getActualDay().getMonthValue() != getDateFromMonthDate().getMonthValue();
 	}
 

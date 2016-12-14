@@ -44,6 +44,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jwt.JwtClaims;
+import org.jose4j.jwt.consumer.InvalidJwtException;
+import org.jose4j.jwt.consumer.JwtConsumer;
+import org.jose4j.jwt.consumer.JwtConsumerBuilder;
 import org.jose4j.keys.HmacKey;
 import org.jose4j.lang.JoseException;
 
@@ -56,6 +59,11 @@ import org.jose4j.lang.JoseException;
 @Slf4j
 public class TLOG16RSResource {
 
+    /**
+     * This is a POST method, and it does the logging in.
+     * @param user UserRb type which contains a name and a password
+     * @return In the returned response it sends the jwt token
+     */
     @POST
     @Path("/login")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -77,6 +85,7 @@ public class TLOG16RSResource {
             JwtClaims claims = new JwtClaims();
             JsonWebSignature jws = new JsonWebSignature();
             String jwt;
+            claims.setExpirationTimeMinutesInTheFuture(5);
             claims.setSubject(user.getName());
             jws.setPayload(claims.toJson());
             jws.setKey(key);
@@ -88,9 +97,50 @@ public class TLOG16RSResource {
         } catch (UnsupportedEncodingException | AuthenticationException | JoseException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
+    /**
+     * This GET method refreshes the JWT token.
+     * @param token
+     * @return 
+     */
+    @GET
+    @Path("/refresh-token")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response refreshToken(@HeaderParam("Authorization") String token) {
+        Key key = null;
+        try {
+            TimeLogger timeLogger = getTimeLogger(token);
+            key = new HmacKey(timeLogger.getPassword().getBytes("UTF-8"));
+            JwtClaims claims = new JwtClaims();
+            JsonWebSignature jws = new JsonWebSignature();
+            String jwt;
+            claims.setSubject(timeLogger.getName());
+            claims.setExpirationTimeMinutesInTheFuture(5);
+            jws.setPayload(claims.toJson());
+            jws.setKey(key);
+            jws.setKeyIdHeaderValue("kid");
+            jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.HMAC_SHA256);
+            jws.setDoKeyValidation(false);
+            jwt = jws.getCompactSerialization();
+            return Response.status(Response.Status.OK).header("Authorization", "Bearer " + jwt).header("Access-Control-Expose-Headers", "Authorization").build();
+        } catch (UnsupportedEncodingException | JoseException | InvalidJwtException e) {
+            log.error(e.getMessage());
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+    }
+
+    /**
+     * This POST method registers a new user.
+     * @param user UserRB type with name and password. Instead of the given password this method saves into database a decoded value.
+     * @return 
+     */
     @POST
     @Path("/register")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -137,9 +187,11 @@ public class TLOG16RSResource {
         try {
             TimeLogger timeLogger = getTimeLogger(token);
             return Response.ok(addNewMonthAndSaveTimeLogger(month.getYear(), month.getMonth(), timeLogger)).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -156,9 +208,11 @@ public class TLOG16RSResource {
         try {
             TimeLogger timeLogger = getTimeLogger(token);
             return Response.ok(timeLogger.getMonths()).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -202,9 +256,11 @@ public class TLOG16RSResource {
             }
             WorkMonth workMonth = addNewMonthAndSaveTimeLogger(year, month, timeLogger);
             return Response.ok(workMonth.getDays()).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -243,9 +299,11 @@ public class TLOG16RSResource {
         } catch (NegativeMinutesOfWorkException e) {
             log.error(e.getMessage());
             return Response.status(449).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -281,12 +339,20 @@ public class TLOG16RSResource {
         } catch (NegativeMinutesOfWorkException e) {
             log.error(e.getMessage());
             return Response.status(449).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
+    /**
+     * This is a PUT method which is able to modify the required minutes on a day
+     * @param day WorkDayRB param, which contains the informations about which day should be modified and how
+     * @param token JWT token for authorization
+     * @return 
+     */
     @PUT
     @Path("/workmonths/workdays/modify")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -319,7 +385,7 @@ public class TLOG16RSResource {
         } catch (NegativeMinutesOfWorkException e) {
             log.error(e.getMessage());
             return Response.status(449).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
         } catch (Exception e) {
@@ -352,9 +418,11 @@ public class TLOG16RSResource {
             WorkDay workDay = new WorkDay(year, month, day);
             addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(year, month, timeLogger, workDay);
             return Response.ok(workDay.getTasks()).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -383,7 +451,7 @@ public class TLOG16RSResource {
             for (WorkMonth workMonth : timeLogger.getMonths()) {
                 if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
                     return getTheSpecifiedDayExistThenAddTheTask(workMonth, task, startedTask, timeLogger);
-                } 
+                }
             }
             createMonthAndDayThenAddTask(task, startedTask, timeLogger);
             return Response.status(Response.Status.OK).build();
@@ -393,9 +461,11 @@ public class TLOG16RSResource {
         } catch (NotSeparatedTaskTimesException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.CONFLICT).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
 
     }
@@ -431,9 +501,11 @@ public class TLOG16RSResource {
         } catch (NotMultipleQuarterHourException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -469,9 +541,11 @@ public class TLOG16RSResource {
         } catch (NotMultipleQuarterHourException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -496,9 +570,11 @@ public class TLOG16RSResource {
                 }
             }
             return Response.status(Response.Status.OK).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException e) {
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -599,7 +675,7 @@ public class TLOG16RSResource {
         WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
         addMonthDayTaskGetStatisticsAndSave(timeLogger, workMonth, workDay, startedTask);
     }
-    
+
     private Response getTheSpecifiedDayExistThenAddTheTask(WorkMonth workMonth, StartTaskRB task, Task startedTask, TimeLogger timeLogger) {
         for (WorkDay workDay : workMonth.getDays()) {
             if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
@@ -743,22 +819,18 @@ public class TLOG16RSResource {
         return response;
     }
 
-    private TimeLogger getTimeLogger(String token) throws NotAuthorizedException, UnsupportedEncodingException, JoseException {
+    private TimeLogger getTimeLogger(String token) throws NotAuthorizedException, UnsupportedEncodingException, JoseException, InvalidJwtException {
 
         if (token != null) {
             String jwt = token.split(" ")[1];
             for (TimeLogger timeLogger : Ebean.find(TimeLogger.class).findList()) {
-                JwtClaims existingClaims = new JwtClaims();
-                JsonWebSignature existingJws = new JsonWebSignature();
-                String existingJwt;
-                existingClaims.setSubject(timeLogger.getName());
-                existingJws.setPayload(existingClaims.toJson());
-                existingJws.setKey(new HmacKey(timeLogger.getPassword().getBytes("UTF-8")));
-                existingJws.setKeyIdHeaderValue("kid");
-                existingJws.setAlgorithmHeaderValue(AlgorithmIdentifiers.HMAC_SHA256);
-                existingJws.setDoKeyValidation(false);
-                existingJwt = existingJws.getCompactSerialization();
-                if (jwt.equals(existingJwt)) {
+                String secret = timeLogger.getPassword();
+                JwtConsumer jwtConsumer = new JwtConsumerBuilder()
+                        .setVerificationKey(new HmacKey(secret.getBytes()))
+                        .setRelaxVerificationKeyValidation()
+                        .build();
+                JwtClaims jwtClaims = jwtConsumer.processToClaims(jwt);
+                if (timeLogger.getName().equals(jwtClaims.getClaimValue("sub"))) {
                     return timeLogger;
                 }
             }

@@ -12,6 +12,7 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
+
 /**
  * A class to store the working months
  *
@@ -19,31 +20,31 @@ import lombok.Setter;
  */
 @Entity
 @Getter
-public class TimeLogger implements Principal{
+public class TimeLogger implements Principal {
 
-	@Id
-	@GeneratedValue
-	@Setter
-	int id;
+    @Id
+    @GeneratedValue
+    @Setter
+    int id;
 
-	String name;
-	String password;
-	String salt;
+    String name;
+    String password;
+    String salt;
 
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<WorkMonth> months = new ArrayList();
 
-	/**
-	 *
-	 * @param name The name of user
-	 * @param password
-	 * @param salt
-	 */
-	public TimeLogger(String name, String password, String salt) {
-		this.name = name;
-		this.password = password;
-		this.salt = salt;
-	}
+    /**
+     *
+     * @param name The name of user
+     * @param password
+     * @param salt
+     */
+    public TimeLogger(String name, String password, String salt) {
+        this.name = name;
+        this.password = password;
+        this.salt = salt;
+    }
 
     /**
      * This method adds a new month to the TimeLogger, if it is in the same
@@ -67,12 +68,12 @@ public class TimeLogger implements Principal{
      * @param workMonth, the parameter about to decide
      * @return true, if it is new, false, if it is already exists
      */
-    private boolean isNewMonth(WorkMonth workMonth) {
+    public boolean isNewMonth(WorkMonth workMonth) {
         for (WorkMonth wm : months) {
-			if ((workMonth.getMonthDate().equals(wm.getMonthDate())) && !months.isEmpty()) {
+            if ((workMonth.getMonthDate().equals(wm.getMonthDate())) && !months.isEmpty()) {
                 return false;
             }
         }
         return true;
-	}
+    }
 }

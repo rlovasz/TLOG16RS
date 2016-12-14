@@ -229,7 +229,7 @@ public class Task {
 	 *
 	 * @return true, if it is valid, false if it isn't valid.
 	 */
-	private boolean isValidRedmineTaskId() {
+	public boolean isValidRedmineTaskId() {
 
 		return taskId.matches("\\d{4}");
 
@@ -240,7 +240,7 @@ public class Task {
 	 *
 	 * @return true, if it is valid, false if it isn't valid.
 	 */
-	private boolean isValidLTTaskId() {
+	public boolean isValidLTTaskId() {
 
 		return taskId.matches("LT-\\d{4}");
 
@@ -251,7 +251,7 @@ public class Task {
 	 *
 	 * @return true, if it is valid, false if it isn't valid.
 	 */
-	private boolean isValidTaskID() {
+	public boolean isValidTaskID() {
 
 		if (taskId == null) {
 			throw new NoTaskIdException("There is no task Id, please set a valid Id!");
@@ -267,7 +267,6 @@ public class Task {
 	 */
 	protected boolean isMultipleQuarterHour() {
 		return getMinPerTask() % 15 == 0;
-
 	}
 
 	/**
