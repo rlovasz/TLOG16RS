@@ -86,7 +86,8 @@ task createDockerfile(type: Dockerfile) {
 	addFile "distributions/${project.distTar.archiveName}", "/tmp"
 	runCommand "mv /tmp/${project.applicationName}-${project.version} /${project.applicationName}"
 	workingDir  "${appFolder}"
-	defaultCommand  "dockerize","-template","/${rootProject.name}/config.yml.template:/${rootProject.name}/config.yml", "/${project.applicationName}/bin/${project.applicationName}", "server", "${project.applicationName}/config.yml"
+
+	defaultCommand  'bash', '-c', 'dockerize -wait ${DB_URL/jdbc:mariadb/tcp}' + " -template /${rootProject.name}/config.yml.template:/${rootProject.name}/config.yml /${project.applicationName}/bin/${project.applicationName}   server ${project.applicationName}/config.yml"
 }
 
 dockerBuildImage {
