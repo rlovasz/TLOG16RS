@@ -10,13 +10,14 @@ import com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException;
 import com.rozsalovasz.tlog16rs.exceptions.InvalidTaskIdException;
 import com.rozsalovasz.tlog16rs.exceptions.NoTaskIdException;
 import com.rozsalovasz.tlog16rs.exceptions.EmptyTimeFieldException;
+import java.text.ParseException;
 import java.time.format.DateTimeFormatter;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class TaskTest {
     
-    private Task getTaskWithoutComment() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    private Task getTaskWithoutComment() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         return new Task("4868", null, "10:45", "11:30");
     }
 
@@ -32,19 +33,19 @@ public class TaskTest {
         return new Task("1485", "This is a comment", 8, 45, 7, 30);
     }
 
-    private Task getTaskWithEmptyTimeField() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    private Task getTaskWithEmptyTimeField() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         return new Task("LT-4894", "", "", "08:45");
     }
 
-    private Task getNormalTask() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    private Task getNormalTask() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         return new Task("LT-4894", "comment", "07:30", "08:45");
     }
 
-    private Task getInvalidLTTask() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    private Task getInvalidLTTask() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         return new Task("LT-48954", "comment", "07:30", "08:45");
     }
 
-    private Task getInvalidRedmineTask() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    private Task getInvalidRedmineTask() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         return new Task("44894", "comment", "07:30", "08:45");
     }
 
@@ -63,7 +64,7 @@ public class TaskTest {
     }
 
     @Test
-    public void testGetMinPerTaskNormal() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testGetMinPerTaskNormal() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         long expResult = 75;
         long result = getNormalTask().getMinPerTask();
         assertEquals(expResult, result);
@@ -75,24 +76,24 @@ public class TaskTest {
     }
 
     @Test
-    public void testGetCommentNoComment() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testGetCommentNoComment() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         String expResult = "";
         String result = getTaskWithoutComment().getComment();
         assertEquals(expResult, result);
     }
 
     @Test(expected = InvalidTaskIdException.class)
-    public void testTaskWithInvalidRedmineId() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testTaskWithInvalidRedmineId() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         getInvalidRedmineTask();
     }
 
     @Test(expected = InvalidTaskIdException.class)
-    public void testTaskWithInvalidLTId() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testTaskWithInvalidLTId() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         getInvalidLTTask();
     }
 
     @Test
-    public void testCreateNormalTask() throws EmptyTimeFieldException, InvalidTaskIdException, NoTaskIdException, NotExpectedTimeOrderException {
+    public void testCreateNormalTask() throws EmptyTimeFieldException, InvalidTaskIdException, NoTaskIdException, NotExpectedTimeOrderException, ParseException {
         Task normalTask = getNormalTask();
         assertEquals("LT-4894", normalTask.getTaskId());
         assertEquals("comment", normalTask.getComment());
@@ -101,7 +102,7 @@ public class TaskTest {
     }
 
     @Test(expected = EmptyTimeFieldException.class)
-    public void testCreateTaskWithEmptyTimeField() throws EmptyTimeFieldException, InvalidTaskIdException, NoTaskIdException, NotExpectedTimeOrderException {
+    public void testCreateTaskWithEmptyTimeField() throws EmptyTimeFieldException, InvalidTaskIdException, NoTaskIdException, NotExpectedTimeOrderException, ParseException {
         getTaskWithEmptyTimeField();
     }
 
@@ -113,7 +114,7 @@ public class TaskTest {
     }
 
     @Test
-    public void testSetStartTimeToNotMultipleQuarterHour() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testSetStartTimeToNotMultipleQuarterHour() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         Task task = getNormalTask();
         task.setStartTime(LocalTime.of(7, 35));
         assertEquals(LocalTime.of(8, 50), task.getEndTime());
@@ -126,19 +127,19 @@ public class TaskTest {
     }
 
     @Test(expected = NotExpectedTimeOrderException.class)
-    public void testSetStartTimeToBeLaterThanEndTime() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testSetStartTimeToBeLaterThanEndTime() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         getNormalTask().setStartTime("09:00");
     }
 
     @Test
-    public void testSetStartTimeNormal() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testSetStartTimeNormal() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         Task normalTask = getNormalTask();
         normalTask.setStartTime("07:00");
         assertEquals(LocalTime.of(7,0), normalTask.getStartTime());
     }
 
     @Test
-    public void testSetEndTimeToNotMultipleQuarterHour() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testSetEndTimeToNotMultipleQuarterHour() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         Task task = getNormalTask();
         task.setEndTime(LocalTime.of(9, 5));
         assertEquals(LocalTime.of(9, 0), task.getEndTime());
@@ -151,24 +152,24 @@ public class TaskTest {
     }
 
     @Test(expected = NotExpectedTimeOrderException.class)
-    public void testSetEndTimeToBeEarlierThanStartTime() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testSetEndTimeToBeEarlierThanStartTime() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         getNormalTask().setEndTime("07:00");
     }
     
     @Test
-    public void testSetEndTimeNormal() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testSetEndTimeNormal() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         Task normalTask = getNormalTask();
         normalTask.setEndTime("09:00");
         assertEquals(LocalTime.of(9,0), normalTask.getEndTime());
     }
 
     @Test(expected = NoTaskIdException.class)
-    public void testSetTaskIdToNull() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testSetTaskIdToNull() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         getNormalTask().setTaskId(null);
     }
 
     @Test(expected = InvalidTaskIdException.class)
-    public void testSetTaskIdToInvalid() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testSetTaskIdToInvalid() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         getNormalTask().setTaskId("gsgsg");
     }
     

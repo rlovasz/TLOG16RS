@@ -10,6 +10,7 @@ import com.rozsalovasz.tlog16rs.exceptions.InvalidTaskIdException;
 import com.rozsalovasz.tlog16rs.exceptions.NoTaskIdException;
 import com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException;
 import com.rozsalovasz.tlog16rs.entities.Task;
+import java.text.ParseException;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +55,7 @@ public class UtilTest {
     }
 
     @Test
-    public void testIsSeparatedTimeTrueType1() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeTrueType1() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "06:45"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "05:30", "06:30"));
@@ -63,7 +64,7 @@ public class UtilTest {
     }
     
     @Test
-    public void testIsSeparatedTimeTrueType2() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeTrueType2() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "06:45"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "06:45", "07:00"));
@@ -72,7 +73,7 @@ public class UtilTest {
     }
     
     @Test
-    public void testIsSeparatedTimeTrueType3() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeTrueType3() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "06:30"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "05:30", "06:30"));
@@ -81,7 +82,7 @@ public class UtilTest {
     }
     
     @Test
-    public void testIsSeparatedTimeTrueType4() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeTrueType4() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "07:30"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "07:30", "07:30"));
@@ -90,7 +91,7 @@ public class UtilTest {
     }
     
     @Test
-    public void testIsSeparatedTimeFalseType1() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeFalseType1() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "07:00"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "06:00", "06:45"));
@@ -99,7 +100,7 @@ public class UtilTest {
     }
     
     @Test
-    public void testIsSeparatedTimeFalseType2() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeFalseType2() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "07:00"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "06:30", "06:45"));
@@ -108,7 +109,7 @@ public class UtilTest {
     }
     
     @Test
-    public void testIsSeparatedTimeFalseType3() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeFalseType3() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "07:00"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "06:45", "07:15"));
@@ -117,7 +118,7 @@ public class UtilTest {
     }
     
     @Test
-    public void testIsSeparatedTimeFalseType4() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeFalseType4() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "07:00"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "06:45", "07:00"));
@@ -126,7 +127,7 @@ public class UtilTest {
     }
     
     @Test
-    public void testIsSeparatedTimeFalseType5() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    public void testIsSeparatedTimeFalseType5() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         List<Task> tasks = new ArrayList();
         tasks.add(new Task("8888", "comment", "06:30", "07:30"));
         boolean result = Util.isSeparatedTime(tasks, new Task("7777", "comment", "06:30", "06:30"));

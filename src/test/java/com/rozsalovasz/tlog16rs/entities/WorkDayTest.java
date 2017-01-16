@@ -12,6 +12,7 @@ import com.rozsalovasz.tlog16rs.exceptions.NegativeMinutesOfWorkException;
 import com.rozsalovasz.tlog16rs.exceptions.NoTaskIdException;
 import com.rozsalovasz.tlog16rs.exceptions.NotSeparatedTaskTimesException;
 import com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException;
+import java.text.ParseException;
 import java.time.LocalDate;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -34,16 +35,16 @@ public class WorkDayTest {
         return new WorkDay(300, 2016, 9, 1);
     }
     
-    private Task getNormalTask1() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    private Task getNormalTask1() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         return new Task("7894", "comment", "07:30", "08:15");
     }
     
-    private Task getNormalTask2() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+    private Task getNormalTask2() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
         return new Task("7777", "comment", "08:15", "08:45");
     }
 
     @Test
-    public void testGetExtraMinPerDayNegative() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException {
+    public void testGetExtraMinPerDayNegative() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, ParseException {
         WorkDay workDay = getNormalWorkDayWithGivenValues();
         Task task = getNormalTask1();
         workDay.addTask(task);
@@ -99,7 +100,7 @@ public class WorkDayTest {
     }
     
     @Test
-    public void testGetSumPerDayNormal() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException {
+    public void testGetSumPerDayNormal() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, ParseException {
         WorkDay workDay = getNormalWorkDayWithDate();
         Task task1 = getNormalTask1();
         Task task2 = getNormalTask2();
@@ -119,7 +120,7 @@ public class WorkDayTest {
     }
     
     @Test(expected = NotSeparatedTaskTimesException.class)
-    public void testAddTaskNotSeparatedTimes() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException {
+    public void testAddTaskNotSeparatedTimes() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, ParseException {
         WorkDay workDay = getNormalWorkDayWithDate();
         Task task1 = new Task("1486", "This is a comment", 8, 45, 9, 45);
         Task task2 = new Task("4823", "flkhflks ylskjféky", "09:00", "10:30");
@@ -128,7 +129,7 @@ public class WorkDayTest {
     }
     
     @Test(expected = NotSeparatedTaskTimesException.class)
-    public void testAddTaskNotSeparatedTimesWithRound() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException {
+    public void testAddTaskNotSeparatedTimesWithRound() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, ParseException {
         WorkDay workDay = getNormalWorkDayWithDate();
         Task task1 = new Task("1486", "This is a comment", 8, 45, 9, 50);
         Task task2 = new Task("4823", "flkhflks ylskjféky", "08:20", "08:45");
