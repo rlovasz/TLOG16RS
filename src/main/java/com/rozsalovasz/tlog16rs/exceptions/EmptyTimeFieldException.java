@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * This exception is thrown if there is an empty time argument in the created task
  *
  * @author rlovasz
  */
-public class EmptyTimeFieldException extends RuntimeException {
+public class EmptyTimeFieldException extends IllegalArgumentException {
 
 	/**
 	 *

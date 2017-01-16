@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * This exception is thrown if the required working hours of day if set to be negative
  *
  * @author rlovasz
  */
-public class NegativeMinutesOfWorkException extends RuntimeException {
+public class NegativeMinutesOfWorkException extends IllegalArgumentException {
 
 	/**
 	 *

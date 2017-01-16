@@ -9,26 +9,35 @@ import com.rozsalovasz.tlog16rs.beans.StartTaskRB;
 import com.rozsalovasz.tlog16rs.beans.UserRB;
 import com.rozsalovasz.tlog16rs.beans.WorkDayRB;
 import com.rozsalovasz.tlog16rs.beans.WorkMonthRB;
-import com.rozsalovasz.tlog16rs.core.FutureWorkException;
-import com.rozsalovasz.tlog16rs.core.InvalidTaskIdException;
-import com.rozsalovasz.tlog16rs.core.NegativeMinutesOfWorkException;
-import com.rozsalovasz.tlog16rs.core.NotExpectedTimeOrderException;
-import com.rozsalovasz.tlog16rs.core.NotMultipleQuarterHourException;
-import com.rozsalovasz.tlog16rs.core.NotSeparatedTaskTimesException;
-import com.rozsalovasz.tlog16rs.core.WeekendNotEnabledException;
+import com.rozsalovasz.tlog16rs.exceptions.EmptyTimeFieldException;
+import com.rozsalovasz.tlog16rs.exceptions.FutureWorkException;
+import com.rozsalovasz.tlog16rs.exceptions.InvalidTaskIdException;
+import com.rozsalovasz.tlog16rs.exceptions.NegativeMinutesOfWorkException;
+import com.rozsalovasz.tlog16rs.exceptions.NoTaskIdException;
+import com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException;
+import com.rozsalovasz.tlog16rs.exceptions.NotNewDateException;
+import com.rozsalovasz.tlog16rs.exceptions.NotNewMonthException;
+import com.rozsalovasz.tlog16rs.exceptions.NotSeparatedTaskTimesException;
+import com.rozsalovasz.tlog16rs.exceptions.NotTheSameMonthException;
+import com.rozsalovasz.tlog16rs.exceptions.WeekendNotEnabledException;
 import com.rozsalovasz.tlog16rs.entities.Task;
-import com.rozsalovasz.tlog16rs.entities.TimeLogger;
+import com.rozsalovasz.tlog16rs.entities.User;
 import com.rozsalovasz.tlog16rs.entities.WorkDay;
 import com.rozsalovasz.tlog16rs.entities.WorkMonth;
+import com.rozsalovasz.tlog16rs.resources.service.TLOG16RSService;
 import io.dropwizard.auth.AuthenticationException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.SecureRandom;
-import java.time.LocalDate;
+import java.text.ParseException;
+import java.time.LocalTime;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
@@ -59,8 +68,11 @@ import org.jose4j.lang.JoseException;
 @Slf4j
 public class TLOG16RSResource {
 
+    private final TLOG16RSService service = new TLOG16RSService();
+
     /**
      * This is a POST method, and it does the logging in.
+     *
      * @param user UserRb type which contains a name and a password
      * @return In the returned response it sends the jwt token
      */
@@ -72,7 +84,7 @@ public class TLOG16RSResource {
         Key key = null;
         boolean matching = false;
         try {
-            for (TimeLogger timeLogger : Ebean.find(TimeLogger.class).findList()) {
+            for (User timeLogger : Ebean.find(User.class).findList()) {
                 String password = Hashing.sha256().hashString(user.getPassword() + timeLogger.getSalt(), StandardCharsets.UTF_8).toString();
                 if (timeLogger.getName().equals(user.getName()) && password.equals(timeLogger.getPassword())) {
                     key = new HmacKey(password.getBytes("UTF-8"));
@@ -104,8 +116,9 @@ public class TLOG16RSResource {
 
     /**
      * This GET method refreshes the JWT token.
+     *
      * @param token
-     * @return 
+     * @return
      */
     @GET
     @Path("/refresh-token")
@@ -114,7 +127,7 @@ public class TLOG16RSResource {
     public Response refreshToken(@HeaderParam("Authorization") String token) {
         Key key = null;
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
+            User timeLogger = getTimeLogger(token);
             key = new HmacKey(timeLogger.getPassword().getBytes("UTF-8"));
             JwtClaims claims = new JwtClaims();
             JsonWebSignature jws = new JsonWebSignature();
@@ -138,8 +151,10 @@ public class TLOG16RSResource {
 
     /**
      * This POST method registers a new user.
-     * @param user UserRB type with name and password. Instead of the given password this method saves into database a decoded value.
-     * @return 
+     *
+     * @param user UserRB type with name and password. Instead of the given
+     * password this method saves into database a decoded value.
+     * @return
      */
     @POST
     @Path("/register")
@@ -147,26 +162,24 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response registerUser(UserRB user) {
         try {
-            boolean exists = false;
             Response response;
-            for (TimeLogger timeLogger : Ebean.find(TimeLogger.class).findList()) {
-                if (timeLogger.getName().equals(user.getName())) {
-                    exists = true;
-                }
+
+            User existingUser = Ebean.find(User.class).where().eq("name", user.getName()).findUnique();
+
+            if (existingUser != null) {
+                return Response.status(Response.Status.CONFLICT).build();
             }
-            if (exists == true) {
-                response = Response.status(Response.Status.CONFLICT).build();
-            } else {
-                SecureRandom random = new SecureRandom();
-                String salt = new BigInteger(25, random).toString(32);
-                String password = Hashing.sha256().hashString(user.getPassword() + salt, StandardCharsets.UTF_8).toString();
-                TimeLogger timelogger = new TimeLogger(user.getName(), password, salt);
-                Ebean.save(timelogger);
-                response = Response.status(Response.Status.OK).build();
-            }
+
+            SecureRandom random = new SecureRandom();
+            String salt = new BigInteger(25, random).toString(32);
+            String password = Hashing.sha256().hashString(user.getPassword() + salt, StandardCharsets.UTF_8).toString();
+            User timelogger = new User(user.getName(), password, salt);
+            Ebean.save(timelogger);
+            response = Response.status(Response.Status.OK).build();
+
             return response;
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("Failed to register user", e);
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -185,12 +198,13 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response addNewMonth(WorkMonthRB month, @HeaderParam("Authorization") String token) {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            return Response.ok(addNewMonthAndSaveTimeLogger(month.getYear(), month.getMonth(), timeLogger)).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
-            log.error(e.getMessage());
+            User timeLogger = getTimeLogger(token);
+            return Response.ok(service.addNewMonthToTimeLogger(timeLogger, month.getYear(), month.getMonth())).build();
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException ex) {
+            log.error(ex.getMessage(), ex);
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
+        } catch (NotNewMonthException ex) {
+            log.error(ex.getMessage(), ex);
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -206,13 +220,11 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response listWorkMonths(@HeaderParam("Authorization") String token) {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
+            User timeLogger = getTimeLogger(token);
             return Response.ok(timeLogger.getMonths()).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
-            log.error(e.getMessage());
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException ex) {
+            log.error(ex.getMessage(), ex);
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -227,8 +239,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response deleteAllMonths() {
         int i = 1;
-        while (!Ebean.find(TimeLogger.class).findList().isEmpty()) {
-            Ebean.delete(TimeLogger.class, i);
+        while (!Ebean.find(User.class).findList().isEmpty()) {
+            Ebean.delete(User.class, i);
             i++;
         }
         return Response.status(Response.Status.OK).build();
@@ -248,18 +260,14 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response listSpecificMonth(@PathParam("year") int year, @PathParam("month") int month, @HeaderParam("Authorization") String token) {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            for (WorkMonth workMonth : timeLogger.getMonths()) {
-                if (workMonth.getMonthDate().equals(YearMonth.of(year, month).toString())) {
-                    return Response.ok(workMonth.getDays()).build();
-                }
-            }
-            WorkMonth workMonth = addNewMonthAndSaveTimeLogger(year, month, timeLogger);
-            return Response.ok(workMonth.getDays()).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
-            log.error(e.getMessage());
+            User timeLogger = getTimeLogger(token);
+            List<WorkDay> days = service.listSpecificMonth(timeLogger, year, month);
+            return Response.ok(days).build();
+        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException ex) {
+            log.error(ex.getMessage(), ex);
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
+        } catch (NotNewMonthException ex) {
+            log.error(ex.getMessage(), ex);
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -278,32 +286,26 @@ public class TLOG16RSResource {
     @Path("/workmonths/workdays")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response addNewDay(WorkDayRB day, @HeaderParam("Authorization") String token) {
+    public Response addNewDayWeekDay(WorkDayRB day, @HeaderParam("Authorization") String token) {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
-            for (WorkMonth workMonth : timeLogger.getMonths()) {
-                if (workMonth.getMonthDate().equals(YearMonth.of(workDay.getActualDay().getYear(), workDay.getActualDay().getMonthValue()).toString())) {
-                    addWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(workMonth, workDay, timeLogger);
-                    return Response.status(Response.Status.OK).build();
-                }
-            }
-            addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
+            User timeLogger = getTimeLogger(token);
+            service.addNewDay(timeLogger, day, false);
             return Response.status(Response.Status.OK).build();
-        } catch (WeekendNotEnabledException e) {
-            log.error(e.getMessage());
-            return Response.status(428).build();
         } catch (FutureWorkException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.FORBIDDEN).build();
         } catch (NegativeMinutesOfWorkException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(449).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
+        } catch (NotNewMonthException | NotNewDateException | NotTheSameMonthException e) {
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch (WeekendNotEnabledException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(428).build();
         }
     }
 
@@ -323,15 +325,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response addNewDayWeekend(WorkDayRB day, @HeaderParam("Authorization") String token) {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
-            for (WorkMonth workMonth : timeLogger.getMonths()) {
-                if (workMonth.getMonthDate().equals(YearMonth.of(workDay.getActualDay().getYear(), workDay.getActualDay().getMonthValue()).toString())) {
-                    addWeekendWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(workMonth, workDay, timeLogger);
-                    return Response.status(Response.Status.OK).build();
-                }
-            }
-            addNewMonthAndWeekendDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
+            User timeLogger = getTimeLogger(token);
+            service.addNewDay(timeLogger, day, true);
             return Response.status(Response.Status.OK).build();
         } catch (FutureWorkException e) {
             log.error(e.getMessage());
@@ -342,55 +337,12 @@ public class TLOG16RSResource {
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
+        } catch (NotNewMonthException | NotNewDateException | NotTheSameMonthException e) {
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.BAD_REQUEST).build();
-        }
-    }
-
-    /**
-     * This is a PUT method which is able to modify the required minutes on a day
-     * @param day WorkDayRB param, which contains the informations about which day should be modified and how
-     * @param token JWT token for authorization
-     * @return 
-     */
-    @PUT
-    @Path("/workmonths/workdays/modify")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response modifyRequiredMinPerDay(WorkDayRB day, @HeaderParam("Authorization") String token) {
-        try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            for (WorkMonth workMonth : timeLogger.getMonths()) {
-                if (workMonth.getMonthDate().equals(YearMonth.of(day.getYear(), day.getMonth()).toString())) {
-                    for (WorkDay workDay : Ebean.find(WorkDay.class).findList()) {
-                        if (workDay.getActualDay().equals(LocalDate.of(day.getYear(), day.getMonth(), day.getDay()))) {
-                            workDay.setRequiredMinPerDay((int) (day.getRequiredHours() * 60));
-                            getStatistics(workDay, workMonth);
-                            Ebean.save(workDay);
-                            Ebean.update(timeLogger);
-                            return Response.status(Response.Status.OK).build();
-                        }
-
-                    }
-                    WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
-                    workMonth.addWorkDay(workDay);
-                    getStatistics(workDay, workMonth);
-                    saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
-                    return Response.status(Response.Status.OK).build();
-                }
-            }
-            WorkDay workDay = new WorkDay((int) ((day.getRequiredHours()) * 60), day.getYear(), day.getMonth(), day.getDay());
-            addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(day.getYear(), day.getMonth(), timeLogger, workDay);
-            return Response.status(Response.Status.OK).build();
-        } catch (NegativeMinutesOfWorkException e) {
-            log.error(e.getMessage());
-            return Response.status(449).build();
-        } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch (WeekendNotEnabledException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(428).build();
         }
     }
 
@@ -409,20 +361,24 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response listSpecificDay(@PathParam("year") int year, @PathParam("month") int month, @PathParam("day") int day, @HeaderParam("Authorization") String token) {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            for (WorkMonth workMonth : timeLogger.getMonths()) {
-                if (workMonth.getMonthDate().equals(YearMonth.of(year, month).toString())) {
-                    return Response.ok(getTasksOfSpecifiedDayOrEmptyListIfNotExist(workMonth, day, year, month, timeLogger)).build();
-                }
-            }
-            WorkDay workDay = new WorkDay(year, month, day);
-            addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(year, month, timeLogger, workDay);
-            return Response.ok(workDay.getTasks()).build();
+            User timeLogger = getTimeLogger(token);
+            List<Task> tasks = service.listSpecificDay(timeLogger, year, month, day);
+            return Response.ok(tasks).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
+        } catch (NegativeMinutesOfWorkException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(449).build();
+        } catch (FutureWorkException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.FORBIDDEN).build();
+        } catch (NotNewMonthException | NotNewDateException | NotTheSameMonthException e) {
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch (WeekendNotEnabledException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(428).build();
         }
     }
 
@@ -436,36 +392,44 @@ public class TLOG16RSResource {
      * comment, String startTime
      * @param token
      * @return with the Task object
+     * @throws java.text.ParseException
      */
     @POST
     @Path("/workmonths/workdays/tasks/start")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response startNewTask(StartTaskRB task, @HeaderParam("Authorization") String token) {
+    public Response startNewTask(StartTaskRB task, @HeaderParam("Authorization") String token) throws ParseException {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            Task startedTask = new Task(task.getTaskId());
-            startedTask.setComment(task.getComment());
-            startedTask.setStartTime(task.getStartTime());
-            startedTask.setEndTime(task.getStartTime());
-            for (WorkMonth workMonth : timeLogger.getMonths()) {
-                if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-                    return getTheSpecifiedDayExistThenAddTheTask(workMonth, task, startedTask, timeLogger);
-                }
-            }
-            createMonthAndDayThenAddTask(task, startedTask, timeLogger);
+            User timeLogger = getTimeLogger(token);
+            service.startNewTask(timeLogger, task);
             return Response.status(Response.Status.OK).build();
         } catch (InvalidTaskIdException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-        } catch (NotSeparatedTaskTimesException e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.CONFLICT).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
+        } catch (NoTaskIdException | EmptyTimeFieldException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.LENGTH_REQUIRED).build();
+        } catch (NotExpectedTimeOrderException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.EXPECTATION_FAILED).build();
+        } catch (NegativeMinutesOfWorkException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(449).build();
+        } catch (FutureWorkException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.FORBIDDEN).build();
+        } catch (NotNewMonthException | NotNewDateException | NotTheSameMonthException e) {
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch (WeekendNotEnabledException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(428).build();
+        } catch (NotSeparatedTaskTimesException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.CONFLICT).build();
         }
 
     }
@@ -480,32 +444,44 @@ public class TLOG16RSResource {
      * String endTime
      * @param token
      * @return with the finished Task object
+     * @throws java.text.ParseException
      */
     @PUT
     @Path("/workmonths/workdays/tasks/finish")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response finishStartedTask(FinishingTaskRB task, @HeaderParam("Authorization") String token) {
+    public Response finishStartedTask(FinishingTaskRB task, @HeaderParam("Authorization") String token) throws ParseException {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            return getTheContainingMonthAndDayAndFinishTaskOrCreateMonthDayAndTask(task, timeLogger);
+            User timeLogger = getTimeLogger(token);
+            service.finishStartedTask(timeLogger, task);
+            return Response.status(Response.Status.OK).build();
         } catch (InvalidTaskIdException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-        } catch (NotSeparatedTaskTimesException e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.CONFLICT).build();
-        } catch (NotExpectedTimeOrderException e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.EXPECTATION_FAILED).build();
-        } catch (NotMultipleQuarterHourException e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
+        } catch (NegativeMinutesOfWorkException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(449).build();
+        } catch (FutureWorkException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.FORBIDDEN).build();
+        } catch (NoTaskIdException | EmptyTimeFieldException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.LENGTH_REQUIRED).build();
+        } catch (NotExpectedTimeOrderException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.EXPECTATION_FAILED).build();
+        } catch (NotNewMonthException | NotNewDateException | NotTheSameMonthException e) {
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch (WeekendNotEnabledException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(428).build();
+        } catch (NotSeparatedTaskTimesException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.CONFLICT).build();
         }
     }
 
@@ -520,32 +496,44 @@ public class TLOG16RSResource {
      * String newEndTime
      * @param token
      * @return with the modified Task object
+     * @throws java.text.ParseException
      */
     @PUT
     @Path("/workmonths/workdays/tasks/modify")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response modifyExistingTask(ModifyTaskRB task, @HeaderParam("Authorization") String token) {
+    public Response modifyExistingTask(ModifyTaskRB task, @HeaderParam("Authorization") String token) throws ParseException {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            return getContainingMonthAndModifyTaskOrCreateMonthDayAndTask(task, timeLogger);
+            User timeLogger = getTimeLogger(token);
+            service.modifyExistingTask(timeLogger, task);
+            return Response.status(Response.Status.OK).build();
         } catch (InvalidTaskIdException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.NOT_ACCEPTABLE).build();
-        } catch (NotSeparatedTaskTimesException e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.CONFLICT).build();
-        } catch (NotExpectedTimeOrderException e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.EXPECTATION_FAILED).build();
-        } catch (NotMultipleQuarterHourException e) {
-            log.error(e.getMessage());
-            return Response.status(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
-            log.error(e.getMessage());
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
+        } catch (NegativeMinutesOfWorkException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(449).build();
+        } catch (FutureWorkException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.FORBIDDEN).build();
+        } catch (NoTaskIdException | EmptyTimeFieldException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.LENGTH_REQUIRED).build();
+        } catch (NotExpectedTimeOrderException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.EXPECTATION_FAILED).build();
+        } catch (NotNewMonthException | NotNewDateException | NotTheSameMonthException e) {
+            log.error(e.getMessage(), e);
             return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch (WeekendNotEnabledException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(428).build();
+        } catch (NotSeparatedTaskTimesException e) {
+            log.error(e.getMessage(), e);
+            return Response.status(Response.Status.CONFLICT).build();
         }
     }
 
@@ -556,279 +544,36 @@ public class TLOG16RSResource {
      * required fields: int year, int month, int day, String taskId, String
      * startTime
      * @param token
+     * @return
+     * @throws java.text.ParseException
      */
     @PUT
     @Path("/workmonths/workdays/tasks/delete")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response deleteTask(DeleteTaskRB task, @HeaderParam("Authorization") String token) {
+    public Response deleteTask(DeleteTaskRB task, @HeaderParam("Authorization") String token) throws ParseException {
         try {
-            TimeLogger timeLogger = getTimeLogger(token);
-            for (WorkMonth workMonth : timeLogger.getMonths()) {
-                if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-                    getDayAndDeleteItsSpecifiedTask(workMonth, task, timeLogger);
-                }
-            }
+            User timeLogger = getTimeLogger(token);
+            service.deleteTask(timeLogger, task);
             return Response.status(Response.Status.OK).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
-    private void getDayAndDeleteItsSpecifiedTask(WorkMonth workMonth, DeleteTaskRB task, TimeLogger timeLogger) {
-        for (WorkDay workDay : workMonth.getDays()) {
-            if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
-                getSpecifiedTaskEndDeleteIt(workDay, task, workMonth, timeLogger);
-            }
-        }
-    }
-
-    private void getSpecifiedTaskEndDeleteIt(WorkDay workDay, DeleteTaskRB task, WorkMonth workMonth, TimeLogger timeLogger) {
-        for (int i = 0; i < workDay.getTasks().size(); i++) {
-            if (task.getTaskId().equals(workDay.getTasks().get(i).getTaskId())
-                    && Task.stringToLocalTime(task.getStartTime()).equals(workDay.getTasks().get(i).getStartTime())) {
-                Ebean.delete(Task.class, i + 1);
-                Ebean.delete(workDay.getTasks().get(i));
-                workDay.removeTask(workDay.getTasks().get(i));
-                getStatistics(workDay, workMonth);
-                Ebean.save(timeLogger);
-            }
-        }
-    }
-
-    private void getStatistics(WorkDay workDay, WorkMonth workMonth) {
-        workDay.getRequiredMinPerDay();
-        workDay.getExtraMinPerDay();
-        workMonth.getRequiredMinPerMonth();
-        workMonth.getExtraMinPerMonth();
-    }
-
-    private WorkMonth addNewMonthAndSaveTimeLogger(int year, int month, TimeLogger timeLogger) {
-        WorkMonth workMonth = new WorkMonth(year, month);
-        timeLogger.addMonth(workMonth);
-        Ebean.save(timeLogger);
-        return workMonth;
-    }
-
-    private void addNewMonthAndDayGetStaticsticsAndSaveTimeLogger(int year, int month, TimeLogger timeLogger, WorkDay workDay) {
-        WorkMonth workMonth = new WorkMonth(year, month);
-        timeLogger.addMonth(workMonth);
-        workMonth.addWorkDay(workDay);
-        getStatistics(workDay, workMonth);
-        Ebean.save(timeLogger);
-    }
-
-    private void addNewMonthAndWeekendDayGetStaticsticsAndSaveTimeLogger(int year, int month, TimeLogger timeLogger, WorkDay workDay) {
-        WorkMonth workMonth = new WorkMonth(year, month);
-        timeLogger.addMonth(workMonth);
-        workMonth.addWorkDay(workDay, true);
-        getStatistics(workDay, workMonth);
-        Ebean.save(timeLogger);
-    }
-
-    private void addWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(WorkMonth workMonth, WorkDay workDay, TimeLogger timeLogger) {
-        workMonth.addWorkDay(workDay);
-        getStatistics(workDay, workMonth);
-        saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
-    }
-
-    private void addWeekendWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(WorkMonth workMonth, WorkDay workDay, TimeLogger timeLogger) {
-        workMonth.addWorkDay(workDay, true);
-        getStatistics(workDay, workMonth);
-        saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
-    }
-
-    private void createTaskAddToWorkDayGetStatisticsAndSave(FinishingTaskRB task, WorkDay workDay, WorkMonth workMonth) {
-        Task startedTask = new Task(task.getTaskId());
-        startedTask.setStartTime(task.getStartTime());
-        startedTask.setEndTime(task.getEndTime());
-        workDay.addTask(startedTask);
-        getStatistics(workDay, workMonth);
-        Ebean.save(workMonth);
-    }
-
-    private Task setModifiedProperties(Task existingTask, ModifyTaskRB task) {
-        existingTask.setComment(task.getNewComment());
-        existingTask.setStartTime(task.getNewStartTime());
-        existingTask.setEndTime(task.getNewEndTime());
-        return existingTask;
-    }
-
-    private void saveWorkMonthUpdateTimeLogger(WorkMonth workMonth, TimeLogger timeLogger) {
-        Ebean.save(workMonth);
-        Ebean.update(timeLogger);
-    }
-
-    private void addMonthDayTaskGetStatisticsAndSave(TimeLogger timeLogger, WorkMonth workMonth, WorkDay workDay, Task startedTask) {
-        timeLogger.addMonth(workMonth);
-        workMonth.addWorkDay(workDay);
-        workDay.addTask(startedTask);
-        getStatistics(workDay, workMonth);
-        Ebean.save(timeLogger);
-    }
-
-    private void createMonthAndDayThenAddTask(StartTaskRB task, Task startedTask, TimeLogger timeLogger) {
-        WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
-        WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
-        addMonthDayTaskGetStatisticsAndSave(timeLogger, workMonth, workDay, startedTask);
-    }
-
-    private Response getTheSpecifiedDayExistThenAddTheTask(WorkMonth workMonth, StartTaskRB task, Task startedTask, TimeLogger timeLogger) {
-        for (WorkDay workDay : workMonth.getDays()) {
-            if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
-                workDay.addTask(startedTask);
-                getStatistics(workDay, workMonth);
-                saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
-                return Response.ok().build();
-            }
-        }
-        WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
-        workMonth.addWorkDay(workDay);
-        workDay.addTask(startedTask);
-        getStatistics(workDay, workMonth);
-        saveWorkMonthUpdateTimeLogger(workMonth, timeLogger);
-        return Response.ok().build();
-    }
-
-    private List<Task> getTasksOfSpecifiedDayOrEmptyListIfNotExist(WorkMonth workMonth, int day, int year, int month, TimeLogger timeLogger) {
-        for (WorkDay workDay : workMonth.getDays()) {
-            if (workDay.getActualDay().getDayOfMonth() == day) {
-                return workDay.getTasks();
-            }
-        }
-        WorkDay workDay = new WorkDay(year, month, day);
-        addWorkDayToExistingTimeLoggerGetStatisticsAndUpdate(workMonth, workDay, timeLogger);
-        return workDay.getTasks();
-    }
-
-    private Response getTheContainingMonthAndDayAndFinishTaskOrCreateMonthDayAndTask(FinishingTaskRB task, TimeLogger timeLogger) {
-        Response response;
-        for (WorkMonth workMonth : timeLogger.getMonths()) {
-            if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-                return getSpecifiedDayAndFinishTheTaskOrCreateDayAndTask(workMonth, task);
-            }
-        }
-        WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
-        WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
-        Task startedTask = new Task(task.getTaskId());
-        startedTask.setStartTime(task.getStartTime());
-        startedTask.setEndTime(task.getEndTime());
-        addMonthDayTaskGetStatisticsAndSave(timeLogger, workMonth, workDay, startedTask);
-        response = Response.status(Response.Status.OK).build();
-        return response;
-    }
-
-    private Response getSpecifiedDayAndFinishTheTaskOrCreateDayAndTask(WorkMonth workMonth, FinishingTaskRB task) {
-        Response response;
-        for (WorkDay workDay : workMonth.getDays()) {
-            if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
-                return getSpecifiedTaskOrCreateIfNotExist(workDay, task, workMonth);
-            }
-        }
-        WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
-        workMonth.addWorkDay(workDay);
-        createTaskAddToWorkDayGetStatisticsAndSave(task, workDay, workMonth);
-        response = Response.status(Response.Status.OK).build();
-        return response;
-    }
-
-    private Response getSpecifiedTaskOrCreateIfNotExist(WorkDay workDay, FinishingTaskRB task, WorkMonth workMonth) {
-        Response response;
-        for (Task startedTask : workDay.getTasks()) {
-            if (task.getTaskId().equals(startedTask.getTaskId())
-                    && Task.stringToLocalTime(task.getStartTime()).equals(startedTask.getStartTime())) {
-                startedTask.setEndTime(task.getEndTime());
-                getStatistics(workDay, workMonth);
-                Ebean.update(workMonth);
-                response = Response.status(Response.Status.OK).build();
-                return response;
-            }
-        }
-        createTaskAddToWorkDayGetStatisticsAndSave(task, workDay, workMonth);
-        response = Response.status(Response.Status.OK).build();
-        return response;
-    }
-
-    private Response getContainingMonthAndModifyTaskOrCreateMonthDayAndTask(ModifyTaskRB task, TimeLogger timeLogger) {
-        Response response;
-        for (WorkMonth workMonth : timeLogger.getMonths()) {
-            if (workMonth.getMonthDate().equals(YearMonth.of(task.getYear(), task.getMonth()).toString())) {
-                return getDayAndModifyItsTaskOrCreateDayAndTask(timeLogger, workMonth, task);
-            }
-        }
-        WorkMonth workMonth = new WorkMonth(task.getYear(), task.getMonth());
-        WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
-        Task newTask = new Task(task.getNewTaskId());
-        setModifiedProperties(newTask, task);
-        addMonthDayTaskGetStatisticsAndSave(timeLogger, workMonth, workDay, newTask);
-        response = Response.status(Response.Status.OK).build();
-        return response;
-    }
-
-    private Response getDayAndModifyItsTaskOrCreateDayAndTask(TimeLogger timeLogger, WorkMonth workMonth, ModifyTaskRB task) {
-        Response response;
-        for (WorkDay workDay : workMonth.getDays()) {
-            if (workDay.getActualDay().getDayOfMonth() == task.getDay()) {
-                return getTaskToModifyOrCreateNew(timeLogger, workDay, task, workMonth);
-            }
-        }
-        WorkDay workDay = new WorkDay(task.getYear(), task.getMonth(), task.getDay());
-        workMonth.addWorkDay(workDay);
-        Task newTask = new Task(task.getNewTaskId());
-        setModifiedProperties(newTask, task);
-        workDay.addTask(newTask);
-        getStatistics(workDay, workMonth);
-        Ebean.save(workMonth);
-        response = Response.status(Response.Status.OK).build();
-        return response;
-    }
-
-    private Response getTaskToModifyOrCreateNew(TimeLogger timeLogger, WorkDay workDay, ModifyTaskRB task, WorkMonth workMonth) {
-        Response response;
-        for (Task existingTask : workDay.getTasks()) {
-            if (task.getTaskId().equals(existingTask.getTaskId())
-                    && Task.stringToLocalTime(task.getStartTime()).equals(existingTask.getStartTime())) {
-                int matchingIndex = workDay.getTasks().indexOf(existingTask);
-                WorkDay testWorkDay = new WorkDay();
-                for (int i = 0; i < workDay.getTasks().size(); i++) {
-                    if (i != matchingIndex) {
-                        testWorkDay.addTask(workDay.getTasks().get(i));
-                    }
-                }
-                existingTask.setTaskId(task.getNewTaskId());
-                existingTask = setModifiedProperties(existingTask, task);
-                if (!testWorkDay.isSeparatedTime(existingTask)) {
-                    response = Response.status(Response.Status.CONFLICT).build();
-                } else {
-                    getStatistics(workDay, workMonth);
-                    Ebean.update(workMonth);
-                    response = Response.status(Response.Status.OK).build();
-                }
-                return response;
-            }
-        }
-        Task newTask = new Task(task.getNewTaskId());
-        setModifiedProperties(newTask, task);
-        workDay.addTask(newTask);
-        getStatistics(workDay, workMonth);
-        Ebean.save(workMonth);
-        response = Response.status(Response.Status.OK).build();
-        return response;
-    }
-
-    private TimeLogger getTimeLogger(String token) throws NotAuthorizedException, UnsupportedEncodingException, JoseException, InvalidJwtException {
+    private User getTimeLogger(String token) throws NotAuthorizedException, UnsupportedEncodingException, JoseException, InvalidJwtException {
 
         if (token != null) {
             String jwt = token.split(" ")[1];
-            for (TimeLogger timeLogger : Ebean.find(TimeLogger.class).findList()) {
+            for (User timeLogger : Ebean.find(User.class).findList()) {
                 String secret = timeLogger.getPassword();
                 JwtConsumer jwtConsumer = new JwtConsumerBuilder()
                         .setVerificationKey(new HmacKey(secret.getBytes()))
                         .setRelaxVerificationKeyValidation()
+                        .setSkipSignatureVerification()
                         .build();
+                jwtConsumer.processContext(jwtConsumer.process(jwt));
                 JwtClaims jwtClaims = jwtConsumer.processToClaims(jwt);
                 if (timeLogger.getName().equals(jwtClaims.getClaimValue("sub"))) {
                     return timeLogger;

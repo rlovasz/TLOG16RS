@@ -5,16 +5,23 @@
  */
 package com.rozsalovasz.tlog16rs.entities;
 
-import com.rozsalovasz.tlog16rs.core.NotTheSameMonthException;
-import com.rozsalovasz.tlog16rs.core.NotNewDateException;
-import com.rozsalovasz.tlog16rs.core.WeekendNotEnabledException;
+import com.rozsalovasz.tlog16rs.exceptions.EmptyTimeFieldException;
+import com.rozsalovasz.tlog16rs.exceptions.FutureWorkException;
+import com.rozsalovasz.tlog16rs.exceptions.InvalidTaskIdException;
+import com.rozsalovasz.tlog16rs.exceptions.NegativeMinutesOfWorkException;
+import com.rozsalovasz.tlog16rs.exceptions.NoTaskIdException;
+import com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException;
+import com.rozsalovasz.tlog16rs.exceptions.NotTheSameMonthException;
+import com.rozsalovasz.tlog16rs.exceptions.NotNewDateException;
+import com.rozsalovasz.tlog16rs.exceptions.NotSeparatedTaskTimesException;
+import com.rozsalovasz.tlog16rs.exceptions.WeekendNotEnabledException;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class WorkMonthTest {
     
     @Test
-    public void testGetSumPerMonthNormal() {
+    public void testGetSumPerMonthNormal() throws InvalidTaskIdException, NoTaskIdException, FutureWorkException, NotSeparatedTaskTimesException, EmptyTimeFieldException, NotExpectedTimeOrderException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
         Task task1 = new Task("1856", "This is a comment", 7, 30, 8, 45);
         Task task2 = new Task("1486", "This is a comment", 8, 45, 9, 45);
         WorkDay workDay1 = new WorkDay(420, 2016, 9, 2);
@@ -29,8 +36,18 @@ public class WorkMonthTest {
         assertEquals(expResult, result);
     }
     
+    @Test(expected = EmptyTimeFieldException.class)
+    public void testGetSumPerMonthOnlyTaskIds() throws InvalidTaskIdException, NoTaskIdException, FutureWorkException, NotSeparatedTaskTimesException, EmptyTimeFieldException, NotExpectedTimeOrderException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
+        Task task1 = new Task("1856");
+        WorkDay workDay1 = new WorkDay(420, 2016, 9, 2);
+        WorkMonth workMonth = new WorkMonth(2016, 9);
+        workDay1.addTask(task1);
+        workMonth.addWorkDay(workDay1);
+        workMonth.getSumPerMonth();
+    }
+    
     @Test
-    public void testGetSumPerMonthNoDays() {
+    public void testGetSumPerMonthNoDays() throws EmptyTimeFieldException, NotExpectedTimeOrderException {
         WorkMonth workMonth = new WorkMonth(2016, 9);
         long expResult = 0;
         long result = workMonth.getSumPerMonth();
@@ -38,7 +55,7 @@ public class WorkMonthTest {
     }
     
     @Test
-    public void testGetExtraMinPerMonthNormal() {
+    public void testGetExtraMinPerMonthNormal() throws InvalidTaskIdException, NoTaskIdException, NegativeMinutesOfWorkException, FutureWorkException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
         Task task1 = new Task("1856", "This is a comment", 7, 30, 8, 45);
         Task task2 = new Task("1486", "This is a comment", 8, 45, 9, 45);
         WorkDay workDay1 = new WorkDay(420, 2016, 9, 2);
@@ -53,8 +70,18 @@ public class WorkMonthTest {
         assertEquals(expResult, result);
     }
     
+    @Test(expected = EmptyTimeFieldException.class)
+    public void testGetExtraMinPerMonthOnlyTaskIds() throws InvalidTaskIdException, NoTaskIdException, NegativeMinutesOfWorkException, FutureWorkException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
+        Task task1 = new Task("1856");
+        WorkDay workDay1 = new WorkDay(420, 2016, 9, 2);
+        WorkMonth workMonth = new WorkMonth(2016, 9);
+        workDay1.addTask(task1);
+        workMonth.addWorkDay(workDay1);
+        workMonth.getExtraMinPerMonth();
+    }
+    
     @Test
-    public void testGetExtraMinPerMonthNoDays() {
+    public void testGetExtraMinPerMonthNoDays() throws EmptyTimeFieldException, NotExpectedTimeOrderException {
         WorkMonth workMonth = new WorkMonth(2016, 9);
         long expResult = 0;
         long result = workMonth.getExtraMinPerMonth();
@@ -62,7 +89,7 @@ public class WorkMonthTest {
     }
     
     @Test
-    public void testGetRequiredMinPerMonthNormal() {
+    public void testGetRequiredMinPerMonthNormal() throws NegativeMinutesOfWorkException, FutureWorkException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
         WorkDay workDay1 = new WorkDay(420, 2016, 9, 2);
         WorkDay workDay2 = new WorkDay(420, 2016, 9, 1);
         WorkMonth workMonth = new WorkMonth(2016, 9);
@@ -82,7 +109,7 @@ public class WorkMonthTest {
     }
     
     @Test
-    public void testAddWorkDayWeekday() {
+    public void testAddWorkDayWeekday() throws NegativeMinutesOfWorkException, FutureWorkException, InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
         WorkDay workDay = new WorkDay(420, 2016, 9, 2);
         Task task = new Task("1856", "This is a comment", 7, 30, 8, 45);
         WorkMonth workMonth = new WorkMonth(2016, 9);
@@ -92,7 +119,7 @@ public class WorkMonthTest {
     }
     
     @Test
-    public void testAddWorkDayWeekendTrue() {
+    public void testAddWorkDayWeekendTrue() throws InvalidTaskIdException, NoTaskIdException, NegativeMinutesOfWorkException, FutureWorkException, EmptyTimeFieldException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
         Task task = new Task("1856", "This is a comment", 7, 30, 8, 45);
         WorkMonth workMonth = new WorkMonth(2016, 9);
         WorkDay workDay = new WorkDay(2016, 9, 10);
@@ -102,138 +129,25 @@ public class WorkMonthTest {
     }
     
     @Test(expected = WeekendNotEnabledException.class)
-    public void testAddWorkDayWeekendFalse() {
+    public void testAddWorkDayWeekendFalse() throws NegativeMinutesOfWorkException, FutureWorkException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
         WorkMonth workMonth = new WorkMonth(2016, 9);
         WorkDay workDay = new WorkDay(2016, 9, 10);
         workMonth.addWorkDay(workDay);
-    }
-    
-    @Test
-    public void testIsSameMonthTrue() {
-        WorkDay workDay = new WorkDay(400, 2016, 9, 2);
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        boolean expResult = true;
-        boolean result = workMonth.isSameMonth(workDay);
-        assertEquals(expResult, result);
-    }
-    
-    @Test
-    public void testIsSameMonthFalse() {
-        WorkDay workDay = new WorkDay(400, 2016, 8, 30);
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        boolean expResult = false;
-        boolean result = workMonth.isSameMonth(workDay);
-        assertEquals(expResult, result);
-    }
-    
-     @Test
-    public void testIsNewDateFalse() {
-        WorkDay workDay1 = new WorkDay(2016, 9, 1);
-        WorkDay workDay2 = new WorkDay(400, 2016, 9, 1);
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        boolean expResult = false;
-        workMonth.addWorkDay(workDay1);
-        boolean result = workMonth.isNewDate(workDay2);
-        assertEquals(expResult, result);
-    }
-    
-    @Test
-    public void testIsNewDateTrue() {
-        WorkDay workDay1 = new WorkDay(2016, 9, 1);
-        WorkDay workDay2 = new WorkDay(400, 2016, 9, 2);
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        boolean expResult = true;
-        workMonth.addWorkDay(workDay1);
-        boolean result = workMonth.isNewDate(workDay2);
-        assertEquals(expResult, result);
-    }
-    
-    @Test
-    public void testIsNewDateEmptyDays() {
-        WorkDay workDay = new WorkDay(400, 2016, 9, 2);
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        boolean expResult = true;
-        boolean result = workMonth.isNewDate(workDay);
-        assertEquals(expResult, result);
-    }    
+    } 
     
     @Test(expected = NotNewDateException.class)
-    public void testAddWorkDayNewFalse() {
+    public void testAddWorkDayNewFalse() throws NegativeMinutesOfWorkException, FutureWorkException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
         WorkDay workDay1 = new WorkDay(2016, 9, 1);
         WorkDay workDay2 = new WorkDay(400, 2016, 9, 1);
         WorkMonth workMonth = new WorkMonth(2016, 9);
         workMonth.addWorkDay(workDay1);
         workMonth.addWorkDay(workDay2);
-    }
-    
-    @Test
-    public void testAddWorkDayNewTrue() {
-        WorkDay workDay1 = new WorkDay(2016, 9, 1);
-        WorkDay workDay2 = new WorkDay(400, 2016, 9, 2);
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        workMonth.addWorkDay(workDay1);
-        workMonth.addWorkDay(workDay2);
-        assertEquals(workDay1.getRequiredMinPerDay() + workDay2.getRequiredMinPerDay(), workMonth.getRequiredMinPerMonth());
     }
     
     @Test(expected = NotTheSameMonthException.class)
-    public void testAddWorkDaySameMonthFalse() {
+    public void testAddWorkDaySameMonthFalse() throws NegativeMinutesOfWorkException, FutureWorkException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException {
         WorkDay workDay = new WorkDay(2016, 8, 30);
         WorkMonth workMonth = new WorkMonth(2016, 9);
         workMonth.addWorkDay(workDay);
-    }
-
-    @Test
-    public void getHasDifferentYearValueTrue() {
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        WorkDay workDay = new WorkDay(400, 2015, 8, 28);
-        boolean expResult = true;
-        boolean result = workMonth.hasDifferentYearValue(workDay);
-        assertEquals(expResult, result);
-    }
-    
-    @Test
-    public void getHasDifferentYearValueFalse() {
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        WorkDay workDay = new WorkDay(400, 2016, 8, 30);
-        boolean expResult = false;
-        boolean result = workMonth.hasDifferentYearValue(workDay);
-        assertEquals(expResult, result);
-    }
-    
-    @Test
-    public void getHasDifferentMonthValueTrue() {
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        WorkDay workDay = new WorkDay(400, 2015, 8, 28);
-        boolean expResult = true;
-        boolean result = workMonth.hasDifferentMonthValue(workDay);
-        assertEquals(expResult, result);
-    }
-    
-    @Test
-    public void getHasDifferentMonthValueFalse() {
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        WorkDay workDay = new WorkDay(400, 2016, 9, 1);
-        boolean expResult = false;
-        boolean result = workMonth.hasDifferentMonthValue(workDay);
-        assertEquals(expResult, result);
-    }
-    
-    @Test
-    public void testIsSameMonthEmptyDaysTrue() {
-        WorkDay workDay = new WorkDay(400, 2016, 9, 2);
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        boolean expResult = true;
-        boolean result = workMonth.isSameMonth(workDay);
-        assertEquals(expResult, result);
-    }
-    
-    @Test
-    public void testIsSameMonthEmptyDaysFalse() {
-        WorkDay workDay = new WorkDay(400, 2016, 8, 30);
-        WorkMonth workMonth = new WorkMonth(2016, 9);
-        boolean expResult = false;
-        boolean result = workMonth.isSameMonth(workDay);
-        assertEquals(expResult, result);
     }
 }

@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * This type of Exception is thrown if the created day is already exists
  *
  * @author rlovasz
  */
-public class NotNewDateException extends RuntimeException {
+public class NotNewDateException extends Exception {
 
 	/**
 	 *

@@ -4,15 +4,14 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.rozsalovasz.tlog16rs.core.FutureWorkException;
-import com.rozsalovasz.tlog16rs.core.NegativeMinutesOfWorkException;
-import com.rozsalovasz.tlog16rs.core.NotMultipleQuarterHourException;
-import com.rozsalovasz.tlog16rs.core.NotSeparatedTaskTimesException;
+import com.rozsalovasz.tlog16rs.Util;
+import com.rozsalovasz.tlog16rs.exceptions.EmptyTimeFieldException;
+import com.rozsalovasz.tlog16rs.exceptions.FutureWorkException;
+import com.rozsalovasz.tlog16rs.exceptions.NegativeMinutesOfWorkException;
+import com.rozsalovasz.tlog16rs.exceptions.NotSeparatedTaskTimesException;
 import java.io.IOException;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
@@ -39,16 +38,9 @@ public class WorkDay {
     @GeneratedValue
     int id;
 
-    private static final List<DayOfWeek> WEEKDAYS = Arrays.asList(
-            DayOfWeek.MONDAY,
-            DayOfWeek.TUESDAY,
-            DayOfWeek.WEDNESDAY,
-            DayOfWeek.THURSDAY,
-            DayOfWeek.FRIDAY
-    );
     private static final int DEFAULT_REQUIRED_MIN_PER_DAY = (int) (7.5 * 60);
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Task> tasks = new ArrayList<>();
+    private final List<Task> tasks = new ArrayList<>();
     private long requiredMinPerDay;
     private long extraMinPerDay;
     @JsonSerialize(using = LocalDateSerializer.class)
@@ -61,17 +53,19 @@ public class WorkDay {
      * @param year
      * @param month
      * @param day
+     * @throws com.rozsalovasz.tlog16rs.exceptions.FutureWorkException
+     * @throws NegativeMinutesOfWorkException
      */
-    public WorkDay(long requiredMinPerDay, int year, int month, int day) {
-        LocalDate localActualDay = LocalDate.of(year, month, day);
+    public WorkDay(long requiredMinPerDay, int year, int month, int day) throws FutureWorkException, NegativeMinutesOfWorkException {
+        LocalDate currentDay = LocalDate.of(year, month, day);
         if (requiredMinPerDay <= 0) {
             throw new NegativeMinutesOfWorkException("You set a negative value for required minutes, you should set a non-negative value!");
         }
-        if (localActualDay.isAfter(LocalDate.now())) {
+        if (currentDay.isAfter(LocalDate.now())) {
             throw new FutureWorkException("You cannot work later than today, you should set an other day!");
         }
         this.requiredMinPerDay = requiredMinPerDay;
-        this.actualDay = localActualDay;
+        this.actualDay = currentDay;
     }
 
     /**
@@ -79,8 +73,10 @@ public class WorkDay {
      *
      * @param requiredMinPerDay In this parameter you can set the minutes you
      * should work today.
+     * @throws com.rozsalovasz.tlog16rs.exceptions.FutureWorkException
+     * @throws NegativeMinutesOfWorkException
      */
-    public WorkDay(long requiredMinPerDay) {
+    public WorkDay(long requiredMinPerDay) throws NegativeMinutesOfWorkException, FutureWorkException {
         this(requiredMinPerDay, LocalDate.now().getYear(), LocalDate.now().getMonthValue(), LocalDate.now().getDayOfMonth());
     }
 
@@ -90,16 +86,21 @@ public class WorkDay {
      * @param year, the year value of the date in YYYY format
      * @param month, the month value of the date with simple integer value
      * @param day, the day value of the date with simple integer value
+     * @throws com.rozsalovasz.tlog16rs.exceptions.FutureWorkException
+     * @throws NegativeMinutesOfWorkException
      */
-    public WorkDay(int year, int month, int day) {
+    public WorkDay(int year, int month, int day) throws NegativeMinutesOfWorkException, FutureWorkException {
         this(DEFAULT_REQUIRED_MIN_PER_DAY, year, month, day);
     }
 
     /**
      * The default actual day will be today (server time), the default required
      * minutes will be 450 min = 7.5 h
+     *
+     * @throws com.rozsalovasz.tlog16rs.exceptions.FutureWorkException
+     * @throws NegativeMinutesOfWorkException
      */
-    public WorkDay() {
+    public WorkDay() throws NegativeMinutesOfWorkException, FutureWorkException {
         this(DEFAULT_REQUIRED_MIN_PER_DAY, LocalDate.now().getYear(), LocalDate.now().getMonthValue(), LocalDate.now().getDayOfMonth());
     }
 
@@ -107,8 +108,9 @@ public class WorkDay {
      * We can set the amount of the minutes the employee should work this day.
      *
      * @param requiredMinPerDay the value which will be set
+     * @throws NegativeMinutesOfWorkException
      */
-    public void setRequiredMinPerDay(long requiredMinPerDay) {
+    public void setRequiredMinPerDay(long requiredMinPerDay) throws NegativeMinutesOfWorkException {
         if (requiredMinPerDay <= 0) {
             throw new NegativeMinutesOfWorkException("You set a negative value for required minutes, you should set a non-negative value!");
         }
@@ -121,13 +123,14 @@ public class WorkDay {
      * @param year, the year value of the date in YYYY format
      * @param month, the month value of the date with simple integer value
      * @param day, the day value of the date with simple integer value
+     * @throws com.rozsalovasz.tlog16rs.exceptions.FutureWorkException
      */
-    public void setActualDay(int year, int month, int day) {
-        LocalDate localActualDay = LocalDate.of(year, month, day);
-        if (localActualDay.isAfter(LocalDate.now())) {
+    public void setActualDay(int year, int month, int day) throws FutureWorkException {
+        LocalDate currentDay = LocalDate.of(year, month, day);
+        if (currentDay.isAfter(LocalDate.now())) {
             throw new FutureWorkException("You cannot work later than today, you should set an other day!");
         }
-        this.actualDay = localActualDay;
+        this.actualDay = currentDay;
     }
 
     /**
@@ -139,8 +142,7 @@ public class WorkDay {
      * worked less, then the required.
      */
     public long getExtraMinPerDay() {
-        extraMinPerDay = getSumPerDay() - requiredMinPerDay;
-        return extraMinPerDay;
+        return getSumPerDay() - requiredMinPerDay;
     }
 
     /**
@@ -148,9 +150,14 @@ public class WorkDay {
      * day.
      *
      * @return with the minutes while the employee worked on this work day
+     * @throws EmptyTimeFieldException
      */
-    public long getSumPerDay() {
-        sumPerDay = tasks.stream().mapToLong(Task::getMinPerTask).sum();
+    public long getSumPerDay() throws EmptyTimeFieldException {
+        if (sumPerDay == 0) {
+            for (Task task : tasks) {
+                sumPerDay += task.getMinPerTask();
+            }
+        }
         return sumPerDay;
     }
 
@@ -160,15 +167,14 @@ public class WorkDay {
      * be false, this method throws
      *
      * @param task It is a Task type parameter, which will be added
+     * @throws com.rozsalovasz.tlog16rs.exceptions.NotSeparatedTaskTimesException
      */
-    public void addTask(Task task) {
-        if (task.isMultipleQuarterHour() && isSeparatedTime(task)) {
+    public void addTask(Task task) throws NotSeparatedTaskTimesException {
+        if (Util.isSeparatedTime(tasks, task)) {
             tasks.add(task);
-        } else if (!isSeparatedTime(task)) {
-            throw new NotSeparatedTaskTimesException("You should separate the time intervals of your tasks!");
+            sumPerDay = 0;
         } else {
-            throw new NotMultipleQuarterHourException("The smallest portion of time is 15 minutes. "
-                    + "Please reconsider the time interval");
+            throw new NotSeparatedTaskTimesException("You should separate the time intervals of your tasks!");
         }
     }
 
@@ -176,34 +182,8 @@ public class WorkDay {
         tasks.remove(task);
     }
 
-    /**
-     * This method decides if this work day is a weekday or notexpResult
-     *
-     * @return true if it is a weekday, false if it is on weekend
-     */
-    protected boolean isWeekday() {
-        return WEEKDAYS.contains(DayOfWeek.from(actualDay));
-    }
-
-    /**
-     * This method decides, if the task parameter has common time interval with
-     * one of the existing tasks
-     *
-     * @param task the parameter to check
-     * @return true, if there is no common time interval, false, if there is a
-     * common time interval
-     */
-    public boolean isSeparatedTime(Task task) {
-        for (Task t : tasks) {
-            boolean existingBeginsEarlier = t.getStartTime().isBefore(task.getStartTime()) && task.getStartTime().isBefore(t.getEndTime());
-            boolean newBeginsEarlier = t.getStartTime().isAfter(task.getStartTime()) && t.getStartTime().isBefore(task.getEndTime());
-            boolean endsOrBeginsTogether = (t.getEndTime().equals(task.getEndTime()) && (!t.getEndTime().equals(t.getStartTime()) && !task.getEndTime().equals(task.getStartTime()))) || t.getStartTime().equals(task.getStartTime());
-            if ((existingBeginsEarlier || newBeginsEarlier || endsOrBeginsTogether) && !tasks.isEmpty()) {
-                return false;
-            }
-
-        }
-        return true;
+    public boolean isSeparatedTime(Task existingTask) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     private static class LocalDateSerializer extends JsonSerializer<LocalDate> {

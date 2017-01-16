@@ -1,10 +1,10 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 /**
  * This is a type of Exceptions which is thrown if the new task has a common time interval with the existing ones
  *
  * @author rlovasz
  */
-public class NotSeparatedTaskTimesException extends RuntimeException {
+public class NotSeparatedTaskTimesException extends Exception {
 
 	/**
 	 *

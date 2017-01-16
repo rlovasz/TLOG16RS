@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * This exception is thrown if the taskId has an invalid value
  *
  * @author rlovasz
  */
-public class InvalidTaskIdException extends RuntimeException {
+public class InvalidTaskIdException extends IllegalArgumentException {
 
 	/**
 	 *

@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * Exception type, which is thrown if a work day is on weekend and it is not enabled to work on weekend
  *
  * @author rlovasz
  */
-public class WeekendNotEnabledException extends RuntimeException {
+public class WeekendNotEnabledException extends Exception {
 
 	/**
 	 *

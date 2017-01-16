@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * This type of Exceptions is thrown if the task has no set taskId
  *
  * @author rlovasz
  */
-public class NoTaskIdException extends RuntimeException {
+public class NoTaskIdException extends Exception {
 
 	/**
 	 *

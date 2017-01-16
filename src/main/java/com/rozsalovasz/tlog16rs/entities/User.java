@@ -1,6 +1,6 @@
 package com.rozsalovasz.tlog16rs.entities;
 
-import com.rozsalovasz.tlog16rs.core.NotNewMonthException;
+import com.rozsalovasz.tlog16rs.exceptions.NotNewMonthException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +20,7 @@ import lombok.Setter;
  */
 @Entity
 @Getter
-public class TimeLogger implements Principal {
+public class User implements Principal {
 
     @Id
     @GeneratedValue
@@ -32,7 +32,7 @@ public class TimeLogger implements Principal {
     String salt;
 
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<WorkMonth> months = new ArrayList();
+    private final List<WorkMonth> months = new ArrayList();
 
     /**
      *
@@ -40,7 +40,7 @@ public class TimeLogger implements Principal {
      * @param password
      * @param salt
      */
-    public TimeLogger(String name, String password, String salt) {
+    public User(String name, String password, String salt) {
         this.name = name;
         this.password = password;
         this.salt = salt;
@@ -51,8 +51,9 @@ public class TimeLogger implements Principal {
      * year, as the earlier ones
      *
      * @param workMonth the month to add
+     * @throws com.rozsalovasz.tlog16rs.exceptions.NotNewMonthException
      */
-    public void addMonth(WorkMonth workMonth) {
+    public void addMonth(WorkMonth workMonth) throws NotNewMonthException {
         if (isNewMonth(workMonth)) {
             months.add(workMonth);
         } else {
@@ -68,12 +69,14 @@ public class TimeLogger implements Principal {
      * @param workMonth, the parameter about to decide
      * @return true, if it is new, false, if it is already exists
      */
-    public boolean isNewMonth(WorkMonth workMonth) {
+    private boolean isNewMonth(WorkMonth workMonth) {
+        boolean isNewMonth = true;
         for (WorkMonth wm : months) {
-            if ((workMonth.getMonthDate().equals(wm.getMonthDate())) && !months.isEmpty()) {
-                return false;
+            if (wm.getMonthDate().equals(workMonth.getMonthDate())) {
+                isNewMonth = false;
+                break;
             }
         }
-        return true;
+        return isNewMonth;
     }
 }

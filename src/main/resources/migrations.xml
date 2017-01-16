@@ -4,67 +4,76 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd">
 
-	<changeSet id="1" author="name">
-		<sql>
-			create table task (
-			id                            integer auto_increment not null,
-			work_day_id                   integer not null,
-			task_id                       varchar(255),
-			start_time                    time,
-			end_time                      time,
-			comment                       varchar(255),
-			min_per_task                  bigint,
-			constraint pk_task primary key (id)
-			);
-
-			create table time_logger (
-			id                            integer auto_increment not null,
-			constraint pk_time_logger primary key (id)
-			);
-
-			create table work_day (
-			id                            integer auto_increment not null,
-			work_month_id                 integer not null,
-			required_min_per_day          bigint,
-			extra_min_per_day             bigint,
-			actual_day                    date,
-			sum_per_day                   bigint,
-			constraint pk_work_day primary key (id)
-			);
-
-			create table work_month (
-			id                            integer auto_increment not null,
-			time_logger_id                integer not null,
-			sum_per_month                 bigint,
-			required_min_per_month        bigint,
-			extra_min_per_month           bigint,
-			date                          varchar(255),
-			constraint pk_work_month primary key (id)
-			);
-
-			alter table task add constraint fk_task_work_day_id foreign key (work_day_id) references work_day (id) on delete restrict on update restrict;
-			create index ix_task_work_day_id on task (work_day_id);
-
-			alter table work_day add constraint fk_work_day_work_month_id foreign key (work_month_id) references work_month (id) on delete restrict on update restrict;
-			create index ix_work_day_work_month_id on work_day (work_month_id);
-
-			alter table work_month add constraint fk_work_month_time_logger_id foreign key (time_logger_id) references time_logger (id) on delete restrict on update restrict;
-			create index ix_work_month_time_logger_id on work_month (time_logger_id);
-
-		</sql>
+	<changeSet id="1" author="rlovasz">
+		<createTable tableName="task">
+			<column name="id" type="int" autoIncrement="true">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="work_day_id" type="int">
+				<constraints nullable="false"/>
+			</column>
+			<column name="task_id" type="varchar(20)"/>
+			<column name="start_time" type="time"/>
+			<column name="end_time" type="time"/>
+			<column name="comment" type="varchar(255)"/>
+			<column name="min_per_task" type="int"/>
+		</createTable>
+		<createTable tableName="user">
+			<column name="id" type="int" autoIncrement="true">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+		</createTable>
+		<createTable tableName="work_day">
+			<column name="id" type="int" autoIncrement="true">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="work_month_id" type="int">
+				<constraints nullable="false"/>
+			</column>
+			<column name="required_min_per_day" type="int"/>
+			<column name="extra_min_per_day" type="int"/>
+			<column name="sum_per_day" type="int"/>
+			<column name="actual_day" type="date"/>
+		</createTable>
+		<createTable tableName="work_month">
+			<column name="id" type="int" autoIncrement="true">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="user_id" type="int">
+				<constraints nullable="false"/>
+			</column>
+			<column name="sum_per_month" type="int"/>
+			<column name="required_min_per_month" type="int"/>
+			<column name="extra_min_per_month" type="int"/>
+			<column name="date" type="varchar(10)"/>
+		</createTable>
+		
+		<addForeignKeyConstraint baseTableName="task" baseColumnNames="work_day_id" constraintName="fk_task_work_day_id" referencedTableName="work_day" referencedColumnNames="id" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+		<addForeignKeyConstraint baseTableName="work_day" baseColumnNames="work_month_id" constraintName="fk_work_day_work_month_id" referencedTableName="work_month" referencedColumnNames="id" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+		<addForeignKeyConstraint baseTableName="work_month" baseColumnNames="user_id" constraintName="fk_work_month_user_id" referencedTableName="user" referencedColumnNames="id" onDelete="RESTRICT" onUpdate="RESTRICT"/>
+		
+		<createIndex tableName="task" indexName="ix_task_work_day_id">
+			<column name="work_day_id" type="int"/>
+		</createIndex>
+		<createIndex tableName="work_day" indexName="ix_work_day_work_month_id">
+			<column name="work_month_id" type="int"/>
+		</createIndex>
+		<createIndex tableName="work_month" indexName="ix_work_month_user_id">
+			<column name="user_id" type="int"/>
+		</createIndex>
 	</changeSet>
 	
-	<changeSet id="2" author="name">
-		<addColumn tableName="time_logger">
+	<changeSet id="2" author="rlovasz">
+		<addColumn tableName="user">
 			<column name="name" type="varchar(255)"/>
 		</addColumn>
 	</changeSet>	
 
-	<changeSet id="3" author="name">
-		<addColumn tableName="time_logger">
+	<changeSet id="3" author="rlovasz">
+		<addColumn tableName="user">
 			<column name="password" type="varchar(255)"/>
 		</addColumn>
-		<addColumn tableName="time_logger">
+		<addColumn tableName="user">
 			<column name="salt" type="varchar(255)"/>
 		</addColumn>
 	</changeSet>	

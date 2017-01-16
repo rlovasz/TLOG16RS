@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * This exception type is thrown if the task ends earlier than it begins
  *
  * @author rlovasz
  */
-public class NotExpectedTimeOrderException extends RuntimeException {
+public class NotExpectedTimeOrderException extends Exception {
 
 	/**
 	 *

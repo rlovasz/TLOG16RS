@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * This exception is thrown if the created day's date is later than today
  *
  * @author rlovasz
  */
-public class FutureWorkException extends RuntimeException {
+public class FutureWorkException extends Exception {
 
 	/**
 	 *

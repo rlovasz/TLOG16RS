@@ -1,11 +1,11 @@
-package com.rozsalovasz.tlog16rs.core;
+package com.rozsalovasz.tlog16rs.exceptions;
 
 /**
  * This type of Exceptions is thrown if the created month already exists
  *
  * @author rlovasz
  */
-public class NotNewMonthException extends RuntimeException {
+public class NotNewMonthException extends Exception {
 
 	/**
 	 *

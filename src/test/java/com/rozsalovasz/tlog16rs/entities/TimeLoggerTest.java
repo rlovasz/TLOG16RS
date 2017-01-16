@@ -5,61 +5,47 @@
  */
 package com.rozsalovasz.tlog16rs.entities;
 
-import com.rozsalovasz.tlog16rs.core.NotNewMonthException;
+import com.rozsalovasz.tlog16rs.exceptions.EmptyTimeFieldException;
+import com.rozsalovasz.tlog16rs.exceptions.FutureWorkException;
+import com.rozsalovasz.tlog16rs.exceptions.InvalidTaskIdException;
+import com.rozsalovasz.tlog16rs.exceptions.NoTaskIdException;
+import com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException;
+import com.rozsalovasz.tlog16rs.exceptions.NotNewDateException;
+import com.rozsalovasz.tlog16rs.exceptions.NotNewMonthException;
+import com.rozsalovasz.tlog16rs.exceptions.NotSeparatedTaskTimesException;
+import com.rozsalovasz.tlog16rs.exceptions.NotTheSameMonthException;
+import com.rozsalovasz.tlog16rs.exceptions.WeekendNotEnabledException;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class TimeLoggerTest {
 
-    private TimeLogger getTimeLogger() {
-        return new TimeLogger("Lovász Rózsa","12345", "dfjdsf");
+    private User getTimeLogger() {
+        return new User("Lovász Rózsa", "12345", "111");
     }
 
-    private Task getTask() {
-        Task task = new Task("4654", "", 7, 30, 10, 30);
-        return task;
+    private Task getTask() throws InvalidTaskIdException, NoTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+        return new Task("4654", "", 7, 30, 10, 30);
     }
 
     @Test
-    public void testAddMonthNormal() {
+    public void testAddMonthNormal() throws FutureWorkException, NotSeparatedTaskTimesException, NotExpectedTimeOrderException, InvalidTaskIdException, NoTaskIdException, NotNewDateException, NotTheSameMonthException, WeekendNotEnabledException, NotNewMonthException {
         WorkDay workDay = new WorkDay(2016, 4, 14);
         WorkMonth workMonth = new WorkMonth(2016, 4);
-        workDay.addTask(getTask());
+        Task task = getTask();
+        workDay.addTask(task);
         workMonth.addWorkDay(workDay);
-        TimeLogger timeLogger = getTimeLogger();
+        User timeLogger = getTimeLogger();
         timeLogger.addMonth(workMonth);
-        assertEquals(getTask().getMinPerTask(), timeLogger.getMonths().get(0).getSumPerMonth());
+        assertEquals(task.getMinPerTask(), timeLogger.getMonths().get(0).getSumPerMonth());
     }
 
     @Test(expected = NotNewMonthException.class)
-    public void testAddMonthNotNewMonth() {
-        TimeLogger timeLogger = getTimeLogger();
+    public void testAddMonthNotNewMonth() throws NotNewMonthException {
+        User timeLogger = getTimeLogger();
         WorkMonth workMonth1 = new WorkMonth(2016, 4);
         WorkMonth workMonth2 = new WorkMonth(2016, 4);
         timeLogger.addMonth(workMonth1);
         timeLogger.addMonth(workMonth2);
     }
-
-    @Test
-    public void testIsNewMonthTrue() {
-        TimeLogger timeLogger = getTimeLogger();
-        WorkMonth workMonth1 = new WorkMonth(2016, 4);
-        WorkMonth workMonth2 = new WorkMonth(2016, 9);
-        boolean expResult = true;
-        timeLogger.addMonth(workMonth1);
-        boolean result = timeLogger.isNewMonth(workMonth2);
-        assertEquals(expResult, result);
-    }
-
-    @Test
-    public void testIsNewMonthFalse() {
-        TimeLogger timeLogger = getTimeLogger();
-        WorkMonth workMonth1 = new WorkMonth(2016, 4);
-        WorkMonth workMonth2 = new WorkMonth(2016, 4);
-        boolean expResult = false;
-        timeLogger.addMonth(workMonth1);
-        boolean result = timeLogger.isNewMonth(workMonth2);
-        assertEquals(expResult, result);
-    }
-
 }
