@@ -37,20 +37,13 @@ public class WorkMonth {
     @GeneratedValue
     int id;
 
-    private static final List<DayOfWeek> WEEKDAYS = Arrays.asList(
-            DayOfWeek.MONDAY,
-            DayOfWeek.TUESDAY,
-            DayOfWeek.WEDNESDAY,
-            DayOfWeek.THURSDAY,
-            DayOfWeek.FRIDAY
-    );
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<WorkDay> days = new ArrayList<>();
     @JsonSerialize(using = YearMonthSerializer.class)
     @Transient
     private final YearMonth date;
-    private long sumPerMonth = 0;
-    private long requiredMinPerMonth = 0;
+    private long sumPerMonth;
+    private long requiredMinPerMonth;
     private long extraMinPerMonth;
     @Column(name = "date")
     private String monthDate;
@@ -61,6 +54,8 @@ public class WorkMonth {
      * @param month This is the date's value with a simple integer
      */
     public WorkMonth(int year, int month) {
+        this.sumPerMonth = 0;
+        this.requiredMinPerMonth = 0;
         this.days = new ArrayList<>();
         this.date = YearMonth.of(year, month);
         setMonthDate();
@@ -104,9 +99,11 @@ public class WorkMonth {
      * @return with YearMonth type of the actual month
      */
     public YearMonth getDateFromMonthDate() {
-        int year = Integer.parseInt(monthDate.substring(0, 4));
-        int month = Integer.parseInt(monthDate.substring(5));
-        return YearMonth.of(year, month);
+        return YearMonth.parse(monthDate);
+        
+//        int year = Integer.parseInt(monthDate.substring(0, 4));
+//        int month = Integer.parseInt(monthDate.substring(5));
+//        return YearMonth.of(year, month);
     }
 
     /**
@@ -121,7 +118,8 @@ public class WorkMonth {
         if (requiredMinPerMonth == 0) {
             requiredMinPerMonth = getRequiredMinPerMonth();
         }
-        return getSumPerMonth() - requiredMinPerMonth;
+        this.extraMinPerMonth = getSumPerMonth() - requiredMinPerMonth;
+        return this.extraMinPerMonth;
     }
 
     /**
@@ -181,7 +179,9 @@ public class WorkMonth {
      * @return true if it is a weekday, false if it is on weekend
      */
     private boolean isWeekday(WorkDay workDay) {
-        return WEEKDAYS.contains(DayOfWeek.from(workDay.getActualDay()));
+        DayOfWeek day = DayOfWeek.from(workDay.getActualDay());
+        boolean isWeekend = day.equals(DayOfWeek.SATURDAY) || day.equals(DayOfWeek.SUNDAY);
+        return !isWeekend;
     }
 
     /**

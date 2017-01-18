@@ -18,9 +18,9 @@ import com.rozsalovasz.tlog16rs.exceptions.WeekendNotEnabledException;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-public class TimeLoggerTest {
+public class UserTest {
 
-    private User getTimeLogger() {
+    private User getUser() {
         return new User("Lovász Rózsa", "12345", "111");
     }
 
@@ -35,17 +35,17 @@ public class TimeLoggerTest {
         Task task = getTask();
         workDay.addTask(task);
         workMonth.addWorkDay(workDay);
-        User timeLogger = getTimeLogger();
-        timeLogger.addMonth(workMonth);
-        assertEquals(task.getMinPerTask(), timeLogger.getMonths().get(0).getSumPerMonth());
+        User user = getUser();
+        user.addMonth(workMonth);
+        assertEquals(task.getMinPerTask(), user.getMonths().get(0).getSumPerMonth());
     }
 
     @Test(expected = NotNewMonthException.class)
     public void testAddMonthNotNewMonth() throws NotNewMonthException {
-        User timeLogger = getTimeLogger();
+        User user = getUser();
         WorkMonth workMonth1 = new WorkMonth(2016, 4);
         WorkMonth workMonth2 = new WorkMonth(2016, 4);
-        timeLogger.addMonth(workMonth1);
-        timeLogger.addMonth(workMonth2);
+        user.addMonth(workMonth1);
+        user.addMonth(workMonth2);
     }
 }

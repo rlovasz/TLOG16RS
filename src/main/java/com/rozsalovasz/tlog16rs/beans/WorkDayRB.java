@@ -8,9 +8,9 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class WorkDayRB {
-    int year;
-    int month;
-    int day;
-    double requiredHours;
+    private int year;
+    private int month;
+    private int day;
+    private double requiredHours;
  
 }

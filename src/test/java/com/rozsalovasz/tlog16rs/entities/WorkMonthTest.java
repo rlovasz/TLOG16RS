@@ -15,6 +15,7 @@ import com.rozsalovasz.tlog16rs.exceptions.NotTheSameMonthException;
 import com.rozsalovasz.tlog16rs.exceptions.NotNewDateException;
 import com.rozsalovasz.tlog16rs.exceptions.NotSeparatedTaskTimesException;
 import com.rozsalovasz.tlog16rs.exceptions.WeekendNotEnabledException;
+import java.time.YearMonth;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -149,5 +150,19 @@ public class WorkMonthTest {
         WorkDay workDay = new WorkDay(2016, 8, 30);
         WorkMonth workMonth = new WorkMonth(2016, 9);
         workMonth.addWorkDay(workDay);
+    }
+    
+    @Test
+    public void testSetMonthDate() {
+        WorkMonth workMonth = new WorkMonth(2017, 1);
+        assertEquals("2017-01", workMonth.getMonthDate());
+    }
+    
+    @Test
+    public void testGetDateFromMonthDate() {
+        WorkMonth workMonth = new WorkMonth(2017, 1);
+        YearMonth expectedResult = YearMonth.of(2017, 1);
+        YearMonth result = workMonth.getDateFromMonthDate();
+        assertEquals(expectedResult, result);
     }
 }

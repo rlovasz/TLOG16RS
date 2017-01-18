@@ -8,11 +8,11 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class FinishingTaskRB {
-    int year;
-    int month;
-    int day;
-    String taskId;
-    String startTime;
-    String endTime;
+    private int year;
+    private int month;
+    private int day;
+    private String taskId;
+    private String startTime;
+    private String endTime;
 
 }

@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.time.Duration;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -60,6 +59,7 @@ public class Task {
      * @throws EmptyTimeFieldException
      */
     public Task(String taskId, String comment, int startHour, int startMin, int endHour, int endMin) throws NoTaskIdException, InvalidTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException {
+        this.minPerTask = 0;
         this.taskId = taskId;
         this.startTime = LocalTime.of(startHour, startMin);
         this.endTime = LocalTime.of(endHour, endMin);
@@ -75,6 +75,7 @@ public class Task {
      * @throws com.rozsalovasz.tlog16rs.exceptions.NoTaskIdException
      */
     public Task(String taskId) throws InvalidTaskIdException, NoTaskIdException {
+        this.minPerTask = 0;
         this.taskId = taskId;
         if (!isValidTaskID()) {
             throw new InvalidTaskIdException("It is not a valid task Id. Valid id's: 4 digits or LT-4 digits");
@@ -95,17 +96,19 @@ public class Task {
      * @throws com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException
      * @throws InvalidTaskIdException
      * @throws EmptyTimeFieldException
+     * @throws java.text.ParseException
      */
     public Task(String taskId, String comment, String startTimeString, String endTimeString) throws NoTaskIdException, InvalidTaskIdException, EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
+        this.minPerTask = 0;
         if ("".equals(startTimeString)) {
             this.startTime = null;
         } else {
-            this.startTime = Util.parseString(startTimeString);
+            this.startTime = Util.parseStringTime(startTimeString);
         }
         if ("".equals(endTimeString)) {
             this.endTime = null;
         } else {
-            this.endTime = Util.parseString(endTimeString);
+            this.endTime = Util.parseStringTime(endTimeString);
         }
         this.taskId = taskId;
         this.comment = comment;
@@ -139,9 +142,10 @@ public class Task {
      * @param time The String value of time in format HH:MM
      * @throws com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException
      * @throws EmptyTimeFieldException
+     * @throws java.text.ParseException
      */
     public void setStartTime(String time) throws EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
-        setStartTime(Util.parseString(time));
+        setStartTime(Util.parseStringTime(time));
     }
 
     /**
@@ -149,9 +153,10 @@ public class Task {
      * @param time The String value of time in format HH:MM
      * @throws com.rozsalovasz.tlog16rs.exceptions.NotExpectedTimeOrderException
      * @throws EmptyTimeFieldException
+     * @throws java.text.ParseException
      */
     public void setEndTime(String time) throws EmptyTimeFieldException, NotExpectedTimeOrderException, ParseException {
-        setEndTime(Util.parseString(time));
+        setEndTime(Util.parseStringTime(time));
     }
 
     /**
@@ -210,7 +215,8 @@ public class Task {
         if (startTime == null || endTime == null) {
             throw new EmptyTimeFieldException("You leaved out a time argument, you should set it.");
         } else {
-            return Duration.between(startTime, endTime).toMinutes();
+            this.minPerTask = Duration.between(startTime, endTime).toMinutes();
+            return minPerTask;
         }
     }
 

@@ -8,13 +8,13 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class ModifyTaskRB {
-    int year;
-    int month;
-    int day;
-    String taskId;
-    String startTime;
-    String newTaskId;
-    String newComment;
-    String newStartTime;
-    String newEndTime;
+    private int year;
+    private int month;
+    private int day;
+    private String taskId;
+    private String startTime;
+    private String newTaskId;
+    private String newComment;
+    private String newStartTime;
+    private String newEndTime;
 }

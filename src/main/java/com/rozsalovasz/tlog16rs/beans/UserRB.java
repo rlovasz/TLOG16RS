@@ -8,7 +8,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class UserRB {
-	String name;
-	String password;
+	private String name;
+	private String password;
 	
 }

@@ -11,7 +11,6 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import lombok.Getter;
-import lombok.Setter;
 
 /**
  * A class to store the working months
@@ -24,12 +23,11 @@ public class User implements Principal {
 
     @Id
     @GeneratedValue
-    @Setter
     int id;
 
-    String name;
-    String password;
-    String salt;
+    private final String name;
+    private final String password;
+    private final String salt;
 
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private final List<WorkMonth> months = new ArrayList();

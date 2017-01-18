@@ -15,19 +15,20 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
-
 public class Util {
 
     /**
      * This method rounds the given duration to be multiple of quarter hour
+     *
      * @param startTime the beginning of the time interval
      * @param endTime the end of the time interval
      * @return returns with the new endTime for the interval
      */
     public static LocalTime roundToMultipleQuarterHour(LocalTime startTime, LocalTime endTime) {
-        long taskLengthInMinutes = Math.round((float)Duration.between(startTime, endTime).toMinutes()/15)*15;
+        long taskLengthInMinutes = Math.round((float) Duration.between(startTime, endTime).toMinutes() / 15) * 15;
         return startTime.plusMinutes(taskLengthInMinutes);
     }
+
     /**
      * This method checks if the minutes are the multiple of quarter hour
      *
@@ -41,7 +42,7 @@ public class Util {
         if (startTime == null || endTime == null) {
             throw new EmptyTimeFieldException("You leaved out a time argument, you should set it.");
         } else if (startTime.isBefore(endTime) || startTime.equals(endTime)) {
-            return Duration.between(startTime, endTime).toMinutes()%15 == 0;
+            return Duration.between(startTime, endTime).toMinutes() % 15 == 0;
         } else {
             throw new NotExpectedTimeOrderException("Something went wrong. You should begin"
                     + " your task before you finish it.");
@@ -61,9 +62,9 @@ public class Util {
     public static boolean isSeparatedTime(List<Task> tasks, Task task) {
         boolean isSeparated = true;
         for (Task t : tasks) {
-            boolean existingBeginsEarlier = t.getStartTime().isBefore(task.getStartTime()) && task.getStartTime().isBefore(t.getEndTime());
-            boolean newBeginsEarlier = t.getStartTime().isAfter(task.getStartTime()) && t.getStartTime().isBefore(task.getEndTime());
-            boolean endsOrBeginsTogether = (t.getEndTime().equals(task.getEndTime()) && (!t.getEndTime().equals(t.getStartTime()) && !task.getEndTime().equals(task.getStartTime()))) || t.getStartTime().equals(task.getStartTime());
+            boolean existingBeginsEarlier = checkTheNotBeginsOrEndsTogetherCase(t, task);
+            boolean newBeginsEarlier = checkTheNotBeginsOrEndsTogetherCase(task, t);
+            boolean endsOrBeginsTogether = checkTheEndsOrBeginsTogetherCase(t, task);
             isSeparated = !(existingBeginsEarlier || newBeginsEarlier || endsOrBeginsTogether);
             if (isSeparated == false) {
                 break;
@@ -72,17 +73,30 @@ public class Util {
         return isSeparated;
     }
 
-    public static LocalTime parseString(String time) throws ParseException {
+    /**
+     * Parse different types of time formats
+     * @param time
+     * @return with the time as LocalTime
+     * @throws ParseException 
+     */
+    public static LocalTime parseStringTime(String time) throws ParseException {
         String[] formatStrings = {"HH:mm", "H:mm", "H:m", "HH:m", "HHmm", "Hmm"};
-        
-        for(String formatString: formatStrings) {
-            try{
+        for (String formatString : formatStrings) {
+            try {
                 return LocalTime.parse(time, DateTimeFormatter.ofPattern(formatString));
-            } catch(DateTimeParseException e) {
-                
+            } catch (DateTimeParseException e) {
+
             }
         }
         throw new ParseException(time, 0);
     }
-    
+
+    private static boolean checkTheNotBeginsOrEndsTogetherCase(Task task1, Task task2) {
+        return task1.getStartTime().isBefore(task2.getStartTime()) && task2.getStartTime().isBefore(task1.getEndTime());
+    }
+
+    private static boolean checkTheEndsOrBeginsTogetherCase(Task existingTask, Task newTask) {
+        return (existingTask.getEndTime().equals(newTask.getEndTime()) && (existingTask.getMinPerTask() != 0 && newTask.getMinPerTask() != 0))
+                || existingTask.getStartTime().equals(newTask.getStartTime());
+    }
 }

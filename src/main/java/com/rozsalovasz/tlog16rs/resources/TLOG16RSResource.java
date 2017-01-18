@@ -1,7 +1,6 @@
 package com.rozsalovasz.tlog16rs.resources;
 
 import com.avaje.ebean.Ebean;
-import com.google.common.hash.Hashing;
 import com.rozsalovasz.tlog16rs.beans.DeleteTaskRB;
 import com.rozsalovasz.tlog16rs.beans.FinishingTaskRB;
 import com.rozsalovasz.tlog16rs.beans.ModifyTaskRB;
@@ -23,21 +22,12 @@ import com.rozsalovasz.tlog16rs.exceptions.WeekendNotEnabledException;
 import com.rozsalovasz.tlog16rs.entities.Task;
 import com.rozsalovasz.tlog16rs.entities.User;
 import com.rozsalovasz.tlog16rs.entities.WorkDay;
-import com.rozsalovasz.tlog16rs.entities.WorkMonth;
+import com.rozsalovasz.tlog16rs.resources.service.JwtService;
 import com.rozsalovasz.tlog16rs.resources.service.TLOG16RSService;
 import io.dropwizard.auth.AuthenticationException;
 import java.io.UnsupportedEncodingException;
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.Key;
-import java.security.SecureRandom;
 import java.text.ParseException;
-import java.time.LocalTime;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
@@ -50,17 +40,11 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.jose4j.jws.AlgorithmIdentifiers;
-import org.jose4j.jws.JsonWebSignature;
-import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.consumer.InvalidJwtException;
-import org.jose4j.jwt.consumer.JwtConsumer;
-import org.jose4j.jwt.consumer.JwtConsumerBuilder;
-import org.jose4j.keys.HmacKey;
 import org.jose4j.lang.JoseException;
 
 /**
- * This is the class where the REST endpoint are written
+ * This is the class where the REST endpoints are written
  *
  * @author rlovasz
  */
@@ -69,6 +53,7 @@ import org.jose4j.lang.JoseException;
 public class TLOG16RSResource {
 
     private final TLOG16RSService service = new TLOG16RSService();
+    private final JwtService jwtService = new JwtService();
 
     /**
      * This is a POST method, and it does the logging in.
@@ -81,36 +66,13 @@ public class TLOG16RSResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response loginUser(UserRB user) {
-        Key key = null;
-        boolean matching = false;
         try {
-            for (User timeLogger : Ebean.find(User.class).findList()) {
-                String password = Hashing.sha256().hashString(user.getPassword() + timeLogger.getSalt(), StandardCharsets.UTF_8).toString();
-                if (timeLogger.getName().equals(user.getName()) && password.equals(timeLogger.getPassword())) {
-                    key = new HmacKey(password.getBytes("UTF-8"));
-                    matching = true;
-                }
-            }
-            if (matching == false) {
-                throw new AuthenticationException("User not exists");
-            }
-            JwtClaims claims = new JwtClaims();
-            JsonWebSignature jws = new JsonWebSignature();
             String jwt;
-            claims.setExpirationTimeMinutesInTheFuture(5);
-            claims.setSubject(user.getName());
-            jws.setPayload(claims.toJson());
-            jws.setKey(key);
-            jws.setKeyIdHeaderValue("kid");
-            jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.HMAC_SHA256);
-            jws.setDoKeyValidation(false);
-            jwt = jws.getCompactSerialization();
+            jwt = service.loginUser(user);
             return Response.status(Response.Status.OK).header("Authorization", "Bearer " + jwt).header("Access-Control-Expose-Headers", "Authorization").build();
         } catch (UnsupportedEncodingException | AuthenticationException | JoseException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -125,27 +87,13 @@ public class TLOG16RSResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response refreshToken(@HeaderParam("Authorization") String token) {
-        Key key = null;
         try {
-            User timeLogger = getTimeLogger(token);
-            key = new HmacKey(timeLogger.getPassword().getBytes("UTF-8"));
-            JwtClaims claims = new JwtClaims();
-            JsonWebSignature jws = new JsonWebSignature();
-            String jwt;
-            claims.setSubject(timeLogger.getName());
-            claims.setExpirationTimeMinutesInTheFuture(5);
-            jws.setPayload(claims.toJson());
-            jws.setKey(key);
-            jws.setKeyIdHeaderValue("kid");
-            jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.HMAC_SHA256);
-            jws.setDoKeyValidation(false);
-            jwt = jws.getCompactSerialization();
+            User user = service.getUser(token);
+            String jwt = jwtService.generateJwtToken(user);
             return Response.status(Response.Status.OK).header("Authorization", "Bearer " + jwt).header("Access-Control-Expose-Headers", "Authorization").build();
         } catch (UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
 
@@ -163,20 +111,13 @@ public class TLOG16RSResource {
     public Response registerUser(UserRB user) {
         try {
             Response response;
-
             User existingUser = Ebean.find(User.class).where().eq("name", user.getName()).findUnique();
-
             if (existingUser != null) {
-                return Response.status(Response.Status.CONFLICT).build();
+                response = Response.status(Response.Status.CONFLICT).build();
+            } else {
+                service.registerUser(user);
+                response = Response.status(Response.Status.OK).build();
             }
-
-            SecureRandom random = new SecureRandom();
-            String salt = new BigInteger(25, random).toString(32);
-            String password = Hashing.sha256().hashString(user.getPassword() + salt, StandardCharsets.UTF_8).toString();
-            User timelogger = new User(user.getName(), password, salt);
-            Ebean.save(timelogger);
-            response = Response.status(Response.Status.OK).build();
-
             return response;
         } catch (Exception e) {
             log.error("Failed to register user", e);
@@ -198,8 +139,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response addNewMonth(WorkMonthRB month, @HeaderParam("Authorization") String token) {
         try {
-            User timeLogger = getTimeLogger(token);
-            return Response.ok(service.addNewMonthToTimeLogger(timeLogger, month.getYear(), month.getMonth())).build();
+            User user = service.getUser(token);
+            return Response.ok(service.addNewMonthToTimeLogger(user, month.getYear(), month.getMonth())).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException ex) {
             log.error(ex.getMessage(), ex);
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -220,8 +161,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response listWorkMonths(@HeaderParam("Authorization") String token) {
         try {
-            User timeLogger = getTimeLogger(token);
-            return Response.ok(timeLogger.getMonths()).build();
+            User user = service.getUser(token);
+            return Response.ok(user.getMonths()).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException ex) {
             log.error(ex.getMessage(), ex);
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -238,11 +179,7 @@ public class TLOG16RSResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response deleteAllMonths() {
-        int i = 1;
-        while (!Ebean.find(User.class).findList().isEmpty()) {
-            Ebean.delete(User.class, i);
-            i++;
-        }
+        Ebean.deleteAll(Ebean.find(User.class).findList());
         return Response.status(Response.Status.OK).build();
     }
 
@@ -260,8 +197,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response listSpecificMonth(@PathParam("year") int year, @PathParam("month") int month, @HeaderParam("Authorization") String token) {
         try {
-            User timeLogger = getTimeLogger(token);
-            List<WorkDay> days = service.listSpecificMonth(timeLogger, year, month);
+            User user = service.getUser(token);
+            List<WorkDay> days = service.listSpecificMonth(user, year, month);
             return Response.ok(days).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException ex) {
             log.error(ex.getMessage(), ex);
@@ -288,8 +225,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response addNewDayWeekDay(WorkDayRB day, @HeaderParam("Authorization") String token) {
         try {
-            User timeLogger = getTimeLogger(token);
-            service.addNewDay(timeLogger, day, false);
+            User user = service.getUser(token);
+            service.addNewDay(user, day, false);
             return Response.status(Response.Status.OK).build();
         } catch (FutureWorkException e) {
             log.error(e.getMessage(), e);
@@ -325,8 +262,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response addNewDayWeekend(WorkDayRB day, @HeaderParam("Authorization") String token) {
         try {
-            User timeLogger = getTimeLogger(token);
-            service.addNewDay(timeLogger, day, true);
+            User user = service.getUser(token);
+            service.addNewDay(user, day, true);
             return Response.status(Response.Status.OK).build();
         } catch (FutureWorkException e) {
             log.error(e.getMessage());
@@ -361,8 +298,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response listSpecificDay(@PathParam("year") int year, @PathParam("month") int month, @PathParam("day") int day, @HeaderParam("Authorization") String token) {
         try {
-            User timeLogger = getTimeLogger(token);
-            List<Task> tasks = service.listSpecificDay(timeLogger, year, month, day);
+            User user = service.getUser(token);
+            List<Task> tasks = service.listSpecificDay(user, year, month, day);
             return Response.ok(tasks).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
@@ -400,8 +337,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response startNewTask(StartTaskRB task, @HeaderParam("Authorization") String token) throws ParseException {
         try {
-            User timeLogger = getTimeLogger(token);
-            service.startNewTask(timeLogger, task);
+            User user = service.getUser(token);
+            service.startNewTask(user, task);
             return Response.status(Response.Status.OK).build();
         } catch (InvalidTaskIdException e) {
             log.error(e.getMessage(), e);
@@ -452,8 +389,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response finishStartedTask(FinishingTaskRB task, @HeaderParam("Authorization") String token) throws ParseException {
         try {
-            User timeLogger = getTimeLogger(token);
-            service.finishStartedTask(timeLogger, task);
+            User user = service.getUser(token);
+            service.finishStartedTask(user, task);
             return Response.status(Response.Status.OK).build();
         } catch (InvalidTaskIdException e) {
             log.error(e.getMessage(), e);
@@ -504,8 +441,8 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response modifyExistingTask(ModifyTaskRB task, @HeaderParam("Authorization") String token) throws ParseException {
         try {
-            User timeLogger = getTimeLogger(token);
-            service.modifyExistingTask(timeLogger, task);
+            User user = service.getUser(token);
+            service.modifyExistingTask(user, task);
             return Response.status(Response.Status.OK).build();
         } catch (InvalidTaskIdException e) {
             log.error(e.getMessage(), e);
@@ -553,35 +490,12 @@ public class TLOG16RSResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response deleteTask(DeleteTaskRB task, @HeaderParam("Authorization") String token) throws ParseException {
         try {
-            User timeLogger = getTimeLogger(token);
-            service.deleteTask(timeLogger, task);
+            User user = service.getUser(token);
+            service.deleteTask(user, task);
             return Response.status(Response.Status.OK).build();
         } catch (NotAuthorizedException | UnsupportedEncodingException | JoseException | InvalidJwtException e) {
             log.error(e.getMessage());
             return Response.status(Response.Status.UNAUTHORIZED).build();
-        }
-    }
-
-    private User getTimeLogger(String token) throws NotAuthorizedException, UnsupportedEncodingException, JoseException, InvalidJwtException {
-
-        if (token != null) {
-            String jwt = token.split(" ")[1];
-            for (User timeLogger : Ebean.find(User.class).findList()) {
-                String secret = timeLogger.getPassword();
-                JwtConsumer jwtConsumer = new JwtConsumerBuilder()
-                        .setVerificationKey(new HmacKey(secret.getBytes()))
-                        .setRelaxVerificationKeyValidation()
-                        .setSkipSignatureVerification()
-                        .build();
-                jwtConsumer.processContext(jwtConsumer.process(jwt));
-                JwtClaims jwtClaims = jwtConsumer.processToClaims(jwt);
-                if (timeLogger.getName().equals(jwtClaims.getClaimValue("sub"))) {
-                    return timeLogger;
-                }
-            }
-            throw new NotAuthorizedException("Not existing user");
-        } else {
-            throw new NotAuthorizedException("Not existing user");
         }
     }
 }

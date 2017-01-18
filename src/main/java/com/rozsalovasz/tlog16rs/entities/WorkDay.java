@@ -65,6 +65,8 @@ public class WorkDay {
             throw new FutureWorkException("You cannot work later than today, you should set an other day!");
         }
         this.requiredMinPerDay = requiredMinPerDay;
+        this.extraMinPerDay = -requiredMinPerDay;
+        this.sumPerDay = 0;
         this.actualDay = currentDay;
     }
 
@@ -142,7 +144,8 @@ public class WorkDay {
      * worked less, then the required.
      */
     public long getExtraMinPerDay() {
-        return getSumPerDay() - requiredMinPerDay;
+        this.extraMinPerDay = getSumPerDay() - requiredMinPerDay;
+        return this.extraMinPerDay;
     }
 
     /**
@@ -178,12 +181,12 @@ public class WorkDay {
         }
     }
 
+    /**
+     * Removes the given task from the list of tasks
+     * @param task
+     */
     public void removeTask(Task task) {
         tasks.remove(task);
-    }
-
-    public boolean isSeparatedTime(Task existingTask) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     private static class LocalDateSerializer extends JsonSerializer<LocalDate> {

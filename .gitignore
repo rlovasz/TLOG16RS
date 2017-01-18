@@ -1,5 +1,9 @@
-build
+build/
 .gradle
 database
 timelogger-create-all.sql
 timelogger-drop-all.sql
+nbproject/
+private
+.nb-gradle/
+.nb-gradle-properties
