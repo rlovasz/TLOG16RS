@@ -17,7 +17,6 @@ import liquibase.database.jvm.JdbcConnection;
 import liquibase.exception.LiquibaseException;
 import liquibase.resource.ClassLoaderResourceAccessor;
 import lombok.extern.slf4j.Slf4j;
-import org.avaje.agentloader.AgentLoader;
 
 /**
  * This class set up an EbeanServer to communicate with the database, and
@@ -44,16 +43,9 @@ public class CreateDatabase {
      */
     public CreateDatabase(TLOG16RSConfiguration configuration) throws LiquibaseException, ClassNotFoundException, SQLException {
         updateSchema(configuration);
-        agentLoader();
         initDataSourceConfig(configuration);
         initServerConfig(configuration);
         initEbeanServer();
-    }
-
-    private void agentLoader() {
-        if (!AgentLoader.loadAgentFromClasspath("avaje-ebeanorm-agent", "debug=1;packages=com.rozsalovasz.tlog16rs.**")) {
-            log.error("avaje-ebeanorm-agent not found in classpath - not dynamically loaded");
-        }
     }
 
     private void initDataSourceConfig(TLOG16RSConfiguration configuration) {

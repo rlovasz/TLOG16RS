@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.rozsalovasz.tlog16rs.resources.service;
+package com.rozsalovasz.tlog16rs.resources.services;
 
 import com.rozsalovasz.tlog16rs.entities.User;
 import java.io.UnsupportedEncodingException;

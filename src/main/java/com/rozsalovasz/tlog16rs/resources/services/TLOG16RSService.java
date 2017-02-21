@@ -1,4 +1,4 @@
-package com.rozsalovasz.tlog16rs.resources.service;
+package com.rozsalovasz.tlog16rs.resources.services;
 
 import com.avaje.ebean.Ebean;
 import com.google.common.hash.Hashing;

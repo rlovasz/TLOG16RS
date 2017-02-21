@@ -10,7 +10,11 @@ import com.rozsalovasz.tlog16rs.exceptions.FutureWorkException;
 import com.rozsalovasz.tlog16rs.exceptions.NegativeMinutesOfWorkException;
 import com.rozsalovasz.tlog16rs.exceptions.NotSeparatedTaskTimesException;
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
@@ -39,6 +43,7 @@ public class WorkDay {
     int id;
 
     private static final int DEFAULT_REQUIRED_MIN_PER_DAY = (int) (7.5 * 60);
+    private static final LocalDate now = LocalDate.now(ZoneId.of("GMT+1"));
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private final List<Task> tasks = new ArrayList<>();
     private long requiredMinPerDay;
@@ -57,11 +62,11 @@ public class WorkDay {
      * @throws NegativeMinutesOfWorkException
      */
     public WorkDay(long requiredMinPerDay, int year, int month, int day) throws FutureWorkException, NegativeMinutesOfWorkException {
-        LocalDate currentDay = LocalDate.of(year, month, day);
+        LocalDate currentDay = LocalDate.of(year, month, day).atStartOfDay(ZoneId.of("GMT+1")).toLocalDate();
         if (requiredMinPerDay <= 0) {
             throw new NegativeMinutesOfWorkException("You set a negative value for required minutes, you should set a non-negative value!");
         }
-        if (currentDay.isAfter(LocalDate.now())) {
+        if (currentDay.isAfter(now)) {
             throw new FutureWorkException("You cannot work later than today, you should set an other day!");
         }
         this.requiredMinPerDay = requiredMinPerDay;
@@ -79,7 +84,7 @@ public class WorkDay {
      * @throws NegativeMinutesOfWorkException
      */
     public WorkDay(long requiredMinPerDay) throws NegativeMinutesOfWorkException, FutureWorkException {
-        this(requiredMinPerDay, LocalDate.now().getYear(), LocalDate.now().getMonthValue(), LocalDate.now().getDayOfMonth());
+        this(requiredMinPerDay, now.getYear(), now.getMonthValue(), now.getDayOfMonth());
     }
 
     /**
@@ -103,7 +108,7 @@ public class WorkDay {
      * @throws NegativeMinutesOfWorkException
      */
     public WorkDay() throws NegativeMinutesOfWorkException, FutureWorkException {
-        this(DEFAULT_REQUIRED_MIN_PER_DAY, LocalDate.now().getYear(), LocalDate.now().getMonthValue(), LocalDate.now().getDayOfMonth());
+        this(DEFAULT_REQUIRED_MIN_PER_DAY, now.getYear(), now.getMonthValue(), now.getDayOfMonth());
     }
 
     /**
@@ -128,7 +133,7 @@ public class WorkDay {
      * @throws com.rozsalovasz.tlog16rs.exceptions.FutureWorkException
      */
     public void setActualDay(int year, int month, int day) throws FutureWorkException {
-        LocalDate currentDay = LocalDate.of(year, month, day);
+        LocalDate currentDay = LocalDateTime.ofInstant(Instant.from(LocalDate.of(year, month, day)), ZoneId.of("GMT+1")).toLocalDate();
         if (currentDay.isAfter(LocalDate.now())) {
             throw new FutureWorkException("You cannot work later than today, you should set an other day!");
         }
@@ -187,6 +192,7 @@ public class WorkDay {
      */
     public void removeTask(Task task) {
         tasks.remove(task);
+        sumPerDay = 0;
     }
 
     private static class LocalDateSerializer extends JsonSerializer<LocalDate> {
